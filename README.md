@@ -1,3 +1,27 @@
+# Илона | Нумерология + Таро мини-бот
+
+Мини-приложение (web + Telegram WebApp-friendly) и serverless API (Vercel) для нумерологии, Таро, совместимости и зодиака, со встроенным чатом (LLM) и paywall.
+
+## Стек
+- Frontend: Vite + React + TypeScript, React Router, тёмная тема, mobile-first
+- Backend: Vercel serverless (Node 20)
+- LLM: OpenAI (через /api/chat)
+- Store: in-memory с файловой опцией
+- Payments: telegram | stripe | none (заглушки)
+
+## Быстрый старт
+1. Скопируйте `.env.example` в `.env` и заполните ключи (минимум OPENAI_API_KEY или оставьте пусто для stub).
+2. Установка:
+   - В корне: `npm install`
+   - В apps/web: `npm install`
+3. Запуск:
+   - API локально (Vercel): `npm run dev` (в корне)
+   - Frontend: `npm run dev` (в apps/web)
+
+## Деплой на Vercel
+- Импортируйте репозиторий в Vercel.
+- Установите переменные окружения из `.env.example`.
+- Frontend билдится из `apps/web` (Vite), API — из корня `/api/*`.
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
