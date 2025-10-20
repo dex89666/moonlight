@@ -2,6 +2,72 @@ name: CI
 
 on:
   push:
+    branches: [ main, master, recover-stash ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install root deps
+        working-directory: .
+        run: |
+          npm ci --no-audit --no-fund
+
+      - name: Install web deps (tolerant)
+        working-directory: ./apps/web
+        run: |
+          echo "Installing apps/web dependencies with legacy-peer-deps"
+          npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Build web
+        working-directory: ./apps/web
+        run: |
+          npm run build
+
+      - name: Run root tests
+        working-directory: .
+        run: |
+          npm run test --if-present
+
+    # Upload logs/artifacts on failure
+    outputs:
+      log-path: ${{ steps.upload-logs.outputs.artifact }}
+
+  upload-logs:
+    needs: build
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Archive repo
+        run: tar -czf repo.tar.gz .
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-logs
+          path: repo.tar.gz
+name: CI
+
+on:
+  push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
