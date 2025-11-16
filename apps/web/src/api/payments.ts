@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // ⭐️ НОВОЕ: Импортируем твою KV-базу, как в других файлах
-import { kv } from '../core/db'; 
+import { kv } from '../../../core/db'; 
 // (getUser нам здесь не нужен, только kv)
 
 export default async function handler(
