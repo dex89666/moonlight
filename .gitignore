@@ -24,3 +24,10 @@ dist-ssr
 *.sw?
 .env
 .npmrc
+# СЕКРЕТЫ И ЛОКАЛЬНЫЕ НАСТРОЙКИ
+.env
+.env.*
+*.env
+
+# Зависимости
+node_modules
