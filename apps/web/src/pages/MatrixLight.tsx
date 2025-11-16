@@ -1,4 +1,4 @@
-/// <reference types="telegram-web-app" />
+
 import { useState, useEffect } from 'react';
 import { Button, Section } from '../components/UI';
 import { api, ApiAnalysisResponse } from '../api/client';
@@ -37,7 +37,7 @@ export default function MatrixLight() {
   const [isLoading, setIsLoading] = useState(false);
   
   const [storageKey, setStorageKey] = useState<string | null>(null);
-  const [tg, setTg] = useState<WebApp | null>(() => {
+  const [tg, setTg] = useState<any | null>(() => {
     if (typeof window !== 'undefined' && window.Telegram) {
       return window.Telegram.WebApp;
     }

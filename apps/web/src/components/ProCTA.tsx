@@ -15,7 +15,7 @@ export default function ProCTA({ reason }: { reason?: string }) {
 
   const handleProClick = () => {
     setError('');
-    const tg = getTelegramWebApp();
+    const tg: any = getTelegramWebApp();
 
     if (!tg) {
       setError('Ошибка: не удалось найти Telegram WebApp. Откройте в Telegram.');

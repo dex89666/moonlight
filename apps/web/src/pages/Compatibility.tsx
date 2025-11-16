@@ -1,4 +1,4 @@
-/// <reference types="telegram-web-app" />
+
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Button, Section } from '../components/UI';
@@ -42,7 +42,7 @@ export default function Compatibility() {
 
   const [storageKey1, setStorageKey1] = useState<string | null>(null);
   const [storageKey2, setStorageKey2] = useState<string | null>(null);
-  const [tg, setTg] = useState<WebApp | null>(() => {
+  const [tg, setTg] = useState<any | null>(() => {
     if (typeof window !== 'undefined' && window.Telegram) {
       return window.Telegram.WebApp;
     }
