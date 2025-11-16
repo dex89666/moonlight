@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isValidDateStr } from '../core/guard.js';
 import { pathNumber, summaryForPath } from '../core/numerology.js';
 import { getUser } from '../data/store.js';
+import { kv } from '../core/db'
 // import OpenAI from 'openai'; // Мы больше не используем библиотеку
 
 export default async function handler(
@@ -21,66 +22,113 @@ export default async function handler(
   try {
     const u = getUser(userId)
 
-    // If user is not PRO, return a short basic analysis (freemium)
-    if (!u.isPro) {
-      const p = pathNumber(birthDate);
-      const s = summaryForPath(p);
-  const brief = `Короткий психологический портрет — ключевое число ${p}. ${s.summary} Кратко: ${s.traits.slice(0,3).join(', ')}.`
-  return res.json({ analysis: brief, isPro: false, brief: true, briefReason: 'free_quota' })
+    // Check KV subscription expiry for this userId (resilient): if KV fails, log and continue as free user
+    let isPro = false
+    try {
+      const subExpiryIso = await kv.get(userId)
+      if (typeof subExpiryIso === 'string' && subExpiryIso) {
+        isPro = new Date(subExpiryIso) > new Date()
+      } else {
+        isPro = false
+      }
+    } catch (kvErr) {
+      console.error('[BЭКЕНД] KV error when reading subscription for', userId, kvErr)
+      // proceed as non-PRO user to avoid 500 on frontend
+      isPro = false
     }
 
-    // Local dev fallback: if no API key provided, return a stubbed analysis for PRO testing
-    if (!process.env.OPENAI_API_KEY) {
-  const stub = `Локальный тестовый аналитический отчёт по дате ${birthDate}. Это демонстрационный ответ для разработки.`
-  return res.json({ analysis: stub, isPro: true, brief: false });
-    }
-
+    // Simple prompts
     const p = pathNumber(birthDate);
     const s = summaryForPath(p);
 
-    const prompt = `
-    Сгенерируй позитивное и обобщенное текстовое описание личности на основе предоставленных числовых данных. Обращайся к человеку на "ты".
+    // ⭐️ НОВОЕ (Шаг 1): Формируем структурированные данные для фронтенда
+    const matrixData = {
+      keyNumber: p,
+      summary: s.summary,
+      traits: s.traits
+    };
 
+    const PRO_PROMPT = `
+    Подробный PRO-отчёт.
     Входные данные:
     - Ключевое число: ${p}
     - Основная тема: "${s.summary}"
     - Связанные качества: ${s.traits.join(', ')}
 
-    Твой ответ должен быть текстом из 2-3 абзацев, описывающим сильные стороны и потенциал, связанные с этими данными.
-    `;
+    Сгенерируй детальный, структурированный отчёт из 3-5 абзацев, раскрывающий сильные стороны, слабости и рекомендации.`
+
+    const FREE_PROMPT = `Короткий психологический портрет — ключевое число ${p}. ${s.summary}. Кратко: ${s.traits.slice(0,3).join(', ')}.`
+
+    const prompt = isPro ? PRO_PROMPT : FREE_PROMPT
+
+    // Local dev fallback: if no API key provided, return a stubbed analysis for PRO testing
+    if (!process.env.OPENAI_API_KEY) {
+      const stub = isPro
+        ? `Локальный тестовый PRO-отчёт по дате ${birthDate}. Детализированная демонстрация.`
+        : FREE_PROMPT
+      // ⭐️ ИЗМЕНЕНО (Шаг 2): Добавляем matrixData в ответ
+      return res.json({ analysis: stub, isPro, brief: !isPro, matrixData })
+    }
     
     console.log('[БЭКЕНД] Отправляю запрос к ИИ напрямую через fetch...');
 
-    // --- ДЕЛАЕМ ЗАПРОС НАПРЯМУЮ, БЕЗ БИБЛИОТЕКИ ---
-    const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        "model": process.env.MODEL || "mistralai/mistral-7b-instruct:free",
-        "messages": [
-          { "role": "user", "content": prompt }
-        ]
-      })
-    });
+    // Use AbortController to bound the external AI request time and avoid hangs
+    const controller = new AbortController();
+    const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 10000);
+    const to = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (!aiResponse.ok) {
-      throw new Error(`Ошибка от API: ${await aiResponse.text()}`);
+    let aiData: any = null;
+    try {
+      const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          "model": process.env.MODEL || "mistralai/mistral-7b-instruct:free",
+          "messages": [
+            { "role": "user", "content": prompt }
+          ]
+        })
+      });
+
+      if (!aiResponse.ok) {
+        const txt = await aiResponse.text().catch(() => '<no-body>');
+        console.error('[БЭКЕНД] Error from AI provider:', aiResponse.status, txt);
+        const stub = isPro
+          ? `Локальный PRO-ответ по дате ${birthDate}. Проверьте настройки OPENAI_API_KEY.`
+          : FREE_PROMPT;
+        // ⭐️ ИЗМЕНЕНО (Шаг 3): Добавляем matrixData в ответ
+        return res.json({ analysis: stub, isPro, brief: !isPro, source: 'stub', matrixData });
+      }
+
+      aiData = await aiResponse.json();
+      console.log('[БЭКЕНД] Ответ от ИИ успешно получен!');
+    } catch (err: any) {
+      console.error('!!! ОШИБКА НА БЭКЕНДЕ: Error calling AI provider:', err && err.message ? err.message : err);
+      const stub = isPro
+        ? `Локальный PRO-ответ по дате ${birthDate}. Проверьте настройки OPENAI_API_KEY.`
+        : FREE_PROMPT;
+      // ⭐️ ИЗМЕНЕНО (Шаг 4): Добавляем matrixData в ответ
+      return res.json({ analysis: stub, isPro, brief: !isPro, source: 'stub', matrixData });
+    } finally {
+      clearTimeout(to);
     }
 
-    const aiData = await aiResponse.json();
-    console.log('[БЭКЕНД] Ответ от ИИ успешно получен!');
-    // ---------------------------------------------
+    const text = aiData.choices?.[0]?.message?.content || aiData.choices?.[0]?.text || '';
 
-    const text = aiData.choices[0].message.content;
-    
     if (!text) {
-      throw new Error('ИИ вернул пустой ответ.');
+    const stub = isPro
+      ? `Локальный PRO-ответ по дате ${birthDate}. (AI вернул пустой ответ)`
+      : FREE_PROMPT;
+    // ⭐️ ИЗМЕНЕНО (Шаг 5): Добавляем matrixData в ответ
+    return res.json({ analysis: stub, isPro, brief: !isPro, source: 'stub', matrixData });
     }
-    
-  return res.json({ analysis: text, isPro: true, brief: false });
+
+  // ⭐️ ИЗМЕНЕНО (Шаг 6): Добавляем matrixData в УСПЕШНЫЙ ответ
+  return res.json({ analysis: text, isPro, brief: !isPro, source: 'ai', matrixData });
 
   } catch (error: any) {
     // Теперь, если сервер не упадет, мы ГАРАНТИРОВАННО увидим ошибку здесь
