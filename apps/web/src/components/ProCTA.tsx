@@ -35,7 +35,7 @@ export default function ProCTA({ reason }: { reason?: string }) {
       {
         amount: 350, // Наша цена
       },
-      async (result) => {
+      async (result: any) => {
         if (result.status === 'paid') {
           tg.HapticFeedback.notificationOccurred('success');
           

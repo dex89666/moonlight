@@ -1,3 +1,4 @@
+/// <reference types="telegram-web-app" />
 import { useState, useEffect } from 'react';
 import { Button, Section } from '../components/UI';
 import { api, ApiAnalysisResponse } from '../api/client';
@@ -31,9 +32,7 @@ function formatToInput(dateStr: string): string {
 
 export default function MatrixLight() {
   const [d, setD] = useState('');
-  // ⭐️ ИЗМЕНЕНО: apiResponse теперь ЕДИНЫЙ источник правды.
   const [apiResponse, setApiResponse] = useState<null | ApiAnalysisResponse>(null);
-  // ⭐️ УДАЛЕНО: const [analysisText, setAnalysisText] = useState(''); (Больше не нужно)
   const [err, setErr] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -82,23 +81,16 @@ export default function MatrixLight() {
     }
   };
 
-  // ⭐️ НОВОЕ: Обработчик клика по числу (Шаг 1.2)
   const handleKeyNumberClick = (keyNumber: number) => {
-    // Включаем вибрацию (Шаг 3 нашего плана)
     tg?.HapticFeedback.notificationOccurred('success');
-    
-    // Пока что просто выводим alert.
-    // В Этапе 3 (Монетизация) мы будем здесь показывать PRO-описание.
     alert(`Вы нажали на ${keyNumber}. \n\nЗдесь будет подробное PRO-описание этой энергии!`);
   };
 
-  // ⭐️ ИЗМЕНЕНО: handleSubmit
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setErr('');
-    // setAnalysisText(''); // ⭐️ УДАЛЕНО
-    setApiResponse(null); // ⭐️ Сбрасываем ВЕСЬ ответ
+    setApiResponse(null); 
 
     if (storageKey && d) {
       localStorage.setItem(storageKey, d);
@@ -110,7 +102,7 @@ export default function MatrixLight() {
         birthDate: d,
         userId: currentUserId,
       });
-      setApiResponse(response); // ⭐️ Устанавливаем ВЕСЬ ответ
+      setApiResponse(response);
     } catch (e: any) {
       setErr(e?.message || 'Ошибка');
     } finally {
@@ -118,24 +110,19 @@ export default function MatrixLight() {
     }
   };
 
-  // ⭐️ ИЗМЕНЕНО: handleClear
   const handleClear = () => {
     setD('');
-    // setAnalysisText(''); // ⭐️ УДАЛЕНО
-    setApiResponse(null); // ⭐️ Сбрасываем ВЕСЬ ответ
+    setApiResponse(null);
     setErr('');
     if (storageKey) {
       localStorage.removeItem(storageKey);
     }
   };
 
-  // ⭐️ УДАЛЕНО: useEffect, который следил за apiResponse и ставил analysisText (Больше не нужен)
-
   return (
     <Section>
       <h2>Психологический портрет по дате</h2>
       <form onSubmit={handleSubmit}>
-        {/* ... (Форма с календарями остается без изменений) ... */}
         <div className="date-picker-control">
           {!tg ? (
             <div className="browser-date-picker" style={{ display: 'flex', alignItems: 'center' }}>
@@ -154,7 +141,7 @@ export default function MatrixLight() {
               type="button"
               onClick={showDatePicker}
               disabled={isLoading}
-              variant="primary" 
+              // ⭐️ УБРАН 'variant'
             >
               {d ? `Дата: ${d}` : 'Выбрать дату рождения'}
             </Button>
@@ -163,7 +150,7 @@ export default function MatrixLight() {
             <Button
               type="button"
               onClick={handleClear}
-              variant="outline"
+              // ⭐️ УБРАН 'variant'
               style={{ marginLeft: '8px' }}
             >
               Очистить
@@ -179,19 +166,16 @@ export default function MatrixLight() {
 
       {err && <p className="error" style={{ color: 'red' }}>{err}</p>}
 
-      {/* ⭐️⭐️⭐️ ГЛАВНОЕ ИЗМЕНЕНИЕ (Шаг 1.2) ⭐️⭐️⭐️ */}
-      {/* Теперь мы проверяем не analysisText, а сам apiResponse */}
       {apiResponse && (
         <div className="card">
           
-          {/* 1. Блок "Живой Матрицы" (кликабельное число) */}
           {apiResponse.matrixData?.keyNumber && (
             <div className="matrix-key-number" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{fontSize: '1.1rem'}}>Ключевое число:</span>
               <Button
                 type="button"
                 onClick={() => handleKeyNumberClick(apiResponse.matrixData!.keyNumber!)}
-                variant="primary" // (Можешь использовать любой стиль)
+                // ⭐️ УБРАН 'variant'
                 style={{ padding: '10px 15px', fontSize: '1.2rem', fontWeight: 'bold' }}
               >
                 {apiResponse.matrixData.keyNumber}
@@ -199,12 +183,10 @@ export default function MatrixLight() {
             </div>
           )}
 
-          {/* 2. Текстовый анализ (теперь читаем прямо из apiResponse) */}
           {apiResponse.analysis && (
             <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{apiResponse.analysis}</pre>
           )}
 
-          {/* 3. Остальная информация (stub, ProCTA) */}
           {apiResponse.source === 'stub' && (
             <p style={{ color: '#999', marginTop: '0.5rem' }}>
               Это локальный тестовый ответ (stub). Настройте OPENAI_API_KEY для

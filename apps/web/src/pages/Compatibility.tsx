@@ -1,3 +1,4 @@
+/// <reference types="telegram-web-app" />
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Button, Section } from '../components/UI';
@@ -35,7 +36,6 @@ function formatToInput(dateStr: string): string {
 export default function Compatibility() {
   const [d1, setD1] = useState('');
   const [d2, setD2] = useState('');
-  // ⭐️ ИЗМЕНЕНО: 'res' (response) - наш единственный источник правды
   const [res, setRes] = useState<null | ApiAnalysisResponse>(null);
   const [err, setErr] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -103,13 +103,11 @@ export default function Compatibility() {
     }
   };
 
-  // ⭐️ НОВОЕ: Обработчик клика по числу (Шаг 1.2)
   const handleEnergyClick = (energyNumber: number) => {
     tg?.HapticFeedback.notificationOccurred('success');
     alert(`Вы нажали на энергию ${energyNumber}. \n\nЗдесь будет PRO-описание этой энергии!`);
   };
 
-  // ⭐️ ИЗМЕНЕНО: handleClear (он уже сбрасывал 'res', так что все ок)
   const handleClear = (dateIndex: 1 | 2) => {
     tg?.HapticFeedback.impactOccurred('light');
     if (dateIndex === 1) {
@@ -119,18 +117,17 @@ export default function Compatibility() {
       setD2('');
       if (storageKey2) localStorage.removeItem(storageKey2);
     }
-    setRes(null); // Сбрасываем результат
+    setRes(null);
     setErr('');
   };
 
-  // ⭐️ ИЗМЕНЕНО: handleSubmit (он уже ставил 'res', так что все ок)
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     tg?.HapticFeedback.impactOccurred('medium');
     
     setIsLoading(true);
     setErr('');
-    setRes(null); // Сбрасываем ВЕСЬ ответ
+    setRes(null);
 
     try {
       const userId = initTelegram() || 'guest';
@@ -139,7 +136,7 @@ export default function Compatibility() {
         birthDate2: d2,
         userId,
       });
-      setRes(r); // Устанавливаем ВЕСЬ ответ
+      setRes(r);
     } catch (e: any) {
       setErr(e?.message || 'Ошибка');
     } finally {
@@ -151,7 +148,7 @@ export default function Compatibility() {
     <Section>
       <h2>Совместимость</h2>
       <form onSubmit={handleSubmit}>
-        {/* ... (Форма с календарями остается без изменений) ... */}
+        
         <div className="date-picker-control" style={{ marginBottom: '1rem' }}>
           {!tg ? (
             <div className="browser-date-picker" style={{ display: 'flex', alignItems: 'center' }}>
@@ -170,11 +167,12 @@ export default function Compatibility() {
             </Button>
           )}
           {d1.length > 0 && !isLoading && (
-            <Button type="button" onClick={() => handleClear(1)} variant="outline" style={{ marginLeft: '8px' }}>
+            <Button type="button" onClick={() => handleClear(1)} /* ⭐️ УБРАН 'variant' */ style={{ marginLeft: '8px' }}>
               Очистить
             </Button>
           )}
         </div>
+
         <div className="date-picker-control">
           {!tg ? (
             <div className="browser-date-picker" style={{ display: 'flex', alignItems: 'center' }}>
@@ -193,11 +191,12 @@ export default function Compatibility() {
             </Button>
           )}
           {d2.length > 0 && !isLoading && (
-            <Button type="button" onClick={() => handleClear(2)} variant="outline" style={{ marginLeft: '8px' }}>
+            <Button type="button" onClick={() => handleClear(2)} /* ⭐️ УБРАН 'variant' */ style={{ marginLeft: '8px' }}>
               Очистить
             </Button>
           )}
         </div>
+
         <Button 
           type="submit" 
           disabled={isLoading || !d1 || !d2}
@@ -209,23 +208,19 @@ export default function Compatibility() {
 
       {err && <p className="error">{err}</p>}
 
-      {/* ⭐️⭐️⭐️ ГЛАВНОЕ ИЗМЕНЕНИЕ (Шаг 1.2) ⭐️⭐️⭐️ */}
-      {/* Теперь мы проверяем 'res', а не 'analysisText' */}
       {res && (
         <div className="card">
           
-          {/* 1. Блок "Живой Матрицы" (кликабельные числа) */}
           {res.matrixData?.energies && res.matrixData.energies.length > 0 && (
             <div className="matrix-key-number" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{fontSize: '1.1rem'}}>Ключевые энергии:</span>
               
-              {/* Рендерим КАЖДОЕ число как кнопку */}
               {res.matrixData.energies.map((energy, index) => (
                 <Button
-                  key={index} // Используем index, так как числа могут повторяться (напр. 8 и 8)
+                  key={index}
                   type="button"
                   onClick={() => handleEnergyClick(energy)}
-                  variant="primary"
+                  // ⭐️ УБРАН 'variant'
                   style={{ padding: '10px 15px', fontSize: '1.2rem', fontWeight: 'bold' }}
                 >
                   {energy}
@@ -234,13 +229,10 @@ export default function Compatibility() {
             </div>
           )}
 
-          {/* 2. Текстовый анализ (ReactMarkdown) */}
           {res.analysis && (
-            // Мы используем ReactMarkdown, как и было в твоем коде
             <ReactMarkdown>{res.analysis}</ReactMarkdown>
           )}
           
-          {/* 3. Остальная информация (ProCTA) */}
           {res.brief && <ProCTA reason={res.briefReason} />}
         </div>
       )}
