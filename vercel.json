@@ -8,5 +8,15 @@
       "src": "apps/web/package.json",
       "use": "@vercel/static-build"
     }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/[...slug]"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/apps/web/dist/$1"
+    }
   ]
 }
