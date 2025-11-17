@@ -16,7 +16,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/apps/web/dist/$1"
+      "dest": "/apps/web/dist/index.html"
     }
   ]
 }
