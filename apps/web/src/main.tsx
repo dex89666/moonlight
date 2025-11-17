@@ -10,6 +10,9 @@ import Compatibility from './pages/Compatibility'
 import TarotSimple from './pages/TarotSimple'
 import Zodiac from './pages/Zodiac'
 import ProSubscribe from './pages/ProSubscribe'
+import DesignPreview from './components/DesignPreview'
+import ThreeHome from './pages/ThreeHome'
+import AdminPage from './pages/admin'
 
 const router = createBrowserRouter([
   {
@@ -22,7 +25,10 @@ const router = createBrowserRouter([
       { path: 'compat', element: <Compatibility /> },
       { path: 'tarot', element: <TarotSimple /> },
       { path: 'zodiac', element: <Zodiac /> },
-      { path: 'pro', element: <ProSubscribe /> },
+  { path: 'r3d', element: <ThreeHome /> },
+  { path: 'designs', element: <DesignPreview /> },
+  { path: 'pro', element: <ProSubscribe /> },
+  { path: 'admin', element: <AdminPage /> },
     ],
   },
 ])

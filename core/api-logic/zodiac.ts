@@ -1,8 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { isValidSign } from '../core/guard.js';
-import { getUser } from '../data/store.js';
+// ⭐️ ИСПРАВЛЕНО: Путь стал короче
+import { isValidSign } from '../guard.js';
+// ⭐️ ИСПРАВЛЕНО: Путь стал ../../data/
+import { getUser } from '../../data/store.js';
 
-export default async function handler(
+// ⭐️ ИСПРАВЛЕНО: 'export default' заменен на 'export async function'
+export async function handleZodiac(
   req: VercelRequest,
   res: VercelResponse,
 ) {

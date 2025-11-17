@@ -1,4 +1,5 @@
-import type { Payments } from './index'
+// ⭐️ ИСПРАВЛЕНО: Добавлен .js
+import type { Payments } from './index.js' 
 
 export const stripePayments: Payments = {
   async createPro(userId: string) {

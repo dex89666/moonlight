@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { setPro } from '../../data/store'
+// ⭐️ ИСПРАВЛЕНО: Путь стал ../../../data/ + добавлено .js
+import { setPro } from '../../../data/store.js'
 
 function addDays(days: number) {
   const d = new Date()
@@ -7,7 +8,7 @@ function addDays(days: number) {
   return d.toISOString()
 }
 
-// ⭐️ НОВАЯ Вспомогательная функция для ответа
+// ⭐️ (Эта вспомогательная функция остается без изменений)
 async function sendTelegramMessage(token: string, chatId: number, text: string, replyMarkup: any = null) {
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   const body: any = {
@@ -25,7 +26,8 @@ async function sendTelegramMessage(token: string, chatId: number, text: string, 
   });
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+// ⭐️ ИСПРАВЛЕНО: 'export default' заменен на 'export async function'
+export async function handleTelegramWebhook(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed')
 
   // ... (проверка секрета, если есть) ...
@@ -45,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (typeof chatId !== 'number') return res.status(200).json({ ok: true })
 
-  // --- ⭐️ ИЗМЕНЕННАЯ ЛОГИКА ⭐️ ---
+  // --- ⭐️ (Эта логика остается без изменений) ⭐️ ---
 
   try {
     const startMatch = text.startsWith('/start')
@@ -62,21 +64,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await sendTelegramMessage(token, chatId, message);
 
     } 
-    // 2. ⭐️ НОВОЕ: Проверяем обычный /start
+    // 2. Проверяем обычный /start
     else if (text === '/start') {
       const message = "Добро пожаловать! \n\nНажмите кнопку ниже, чтобы открыть приложение.";
       const webAppUrl = process.env.VERCEL_URL 
         ? `https://${process.env.VERCEL_URL}` 
-        // ⭐️ ВАЖНО: Вставь свой URL Vercel как запасной вариант
         : 'https://moonlight-rouge-gamma.vercel.app'; 
       
       const replyMarkup = {
-        // Мы используем inline_keyboard, чтобы кнопка была "под сообщением"
         inline_keyboard: [
-          [ // Первый ряд кнопок
+          [ 
             { 
               text: "✨ Открыть приложение", 
-              // 'web_app' - специальный тип кнопки для Mini Apps
               web_app: { url: webAppUrl } 
             }
           ]
@@ -86,16 +85,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await sendTelegramMessage(token, chatId, message, replyMarkup);
       
     } 
-    // 3. ⭐️ НОВОЕ: (По желанию) Отвечаем на любой другой текст
+    // 3. (По желанию) Отвечаем на любой другой текст
     else {
-      // (Раскомментируй, если хочешь, чтобы он отвечал на "привет")
-      // const message = "Нажмите /start, чтобы запустить приложение.";
-      // await sendTelegramMessage(token, chatId, message);
+      // (Этот блок остается пустым)
     }
 
   } catch (e: any) {
     console.error(e);
-    // (По желанию) Сообщаем пользователю об ошибке
     await sendTelegramMessage(token, chatId, `Произошла ошибка: ${e.message}`);
   }
 

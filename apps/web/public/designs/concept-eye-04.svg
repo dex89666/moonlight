@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="700" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg3" x1="0" x2="1">
+      <stop offset="0" stop-color="#020214"/>
+      <stop offset="1" stop-color="#021b2b"/>
+    </linearGradient>
+    <radialGradient id="core" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#fff3cf"/>
+      <stop offset="50%" stop-color="#ff6c2f"/>
+      <stop offset="100%" stop-color="#170400"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#bg3)"/>
+
+  <!-- multiple small stars -->
+  <g fill="#ffffff" opacity="0.25">
+    <circle cx="80" cy="60" r="1.2"/>
+    <circle cx="160" cy="90" r="1"/>
+    <circle cx="220" cy="40" r="1.6"/>
+    <circle cx="520" cy="110" r="1"/>
+  </g>
+
+  <!-- nav mock -->
+  <g transform="translate(40,30)">
+    <rect width="1120" height="72" rx="14" fill="rgba(255,255,255,0.02)"/>
+    <g transform="translate(20,10)">
+      <rect x="0" y="0" width="160" height="52" rx="10" fill="#21102a"/>
+      <text x="80" y="34" fill="#efe6ff" font-size="14" text-anchor="middle">Домой</text>
+      <rect x="190" y="0" width="160" height="52" rx="10" fill="#2a1a3a"/>
+      <text x="270" y="34" fill="#efe6ff" font-size="14" text-anchor="middle">Zodiac</text>
+    </g>
+  </g>
+
+  <!-- Eye, narrow and tall -->
+  <g transform="translate(620,340)">
+    <ellipse rx="260" ry="120" fill="#12060b"/>
+    <ellipse rx="180" ry="80" fill="url(#core)" opacity="0.98"/>
+    <rect x="-10" y="-75" width="20" height="150" rx="10" fill="#080000"/>
+    <!-- smoky haze -->
+    <ellipse rx="340" ry="160" fill="rgba(8,6,8,0.06)"/>
+  </g>
+
+  <g transform="translate(60,640)">
+    <text x="0" y="0" font-size="12" fill="#9c98b4">Concept 04 — tall ominous eye with broad haze and minimal embers.</text>
+  </g>
+</svg>

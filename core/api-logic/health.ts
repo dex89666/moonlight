@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-export default function handler(_req: VercelRequest, res: VercelResponse) {
+// ⭐️ ИСПРАВЛЕНО: 'export default' заменен на 'export function'
+export function handleHealth(_req: VercelRequest, res: VercelResponse) {
   const flags = {
     provider: process.env.PAYMENTS_PROVIDER || 'none',
     hasTelegramToken: Boolean(process.env.TELEGRAM_BOT_TOKEN),

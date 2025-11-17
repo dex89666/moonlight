@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Design Concepts — Moonlight</title>
+  <style>
+    body{margin:0;background:#040412;color:#dcd7ff;font-family:Inter, system-ui, sans-serif}
+    .wrap{max-width:1200px;margin:36px auto;padding:24px}
+    h1{font-size:20px;margin-bottom:12px}
+    .grid{display:grid;grid-template-columns:1fr;gap:18px}
+    @media(min-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.04)}
+    .svgwrap{height:420px;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:6px}
+    .note{font-size:12px;color:#9b94b7;padding-top:8px}
+    a.top{color:#ffe2a2;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="top" href="/">◀ Вернуться на сайт</a>
+    <h1>Design concepts — Cosmic Eye</h1>
+    <p class="note">Откройте любую карточку, чтобы увидеть SVG. Эти файлы доступны напрямую через static public path.</p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="svgwrap"><img src="/designs/concept-eye-02.svg" alt="Concept 02" style="max-width:100%;height:auto"/></div>
+        <div class="note">Concept 02 — vertical flame pupil, wide iris ring and soft nebula band.</div>
+      </div>
+
+      <div class="card">
+        <div class="svgwrap"><img src="/designs/concept-eye-03.svg" alt="Concept 03" style="max-width:100%;height:auto"/></div>
+        <div class="note">Concept 03 — ringed iris, soft comet trail and ember highlights.</div>
+      </div>
+
+      <div class="card">
+        <div class="svgwrap"><img src="/designs/concept-eye-04.svg" alt="Concept 04" style="max-width:100%;height:auto"/></div>
+        <div class="note">Concept 04 — tall ominous eye with broad haze and minimal embers.</div>
+      </div>
+
+      <div class="card">
+        <div class="svgwrap"><img src="/designs/concept-eye.svg" alt="Concept 01" style="max-width:100%;height:auto"/></div>
+        <div class="note">Concept 01 — original fiery eye illustration (saved in repo root design/ earlier).</div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

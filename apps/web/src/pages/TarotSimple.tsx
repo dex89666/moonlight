@@ -40,6 +40,9 @@ export default function TarotSimple() {
       {res && (
         <div className="card" style={{ textAlign: 'left', marginTop: '1rem' }}>
           <ReactMarkdown>{res.analysis}</ReactMarkdown>
+          {res.source === 'stub' && (
+            <p style={{ color: '#999', marginTop: '0.5rem' }}>Это локальный тестовый ответ (stub). Настройте OPENAI_API_KEY для реальных ответов.</p>
+          )}
           {res.brief && <ProCTA reason={res.briefReason} />}
         </div>
       )}

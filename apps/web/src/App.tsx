@@ -12,6 +12,7 @@ export default function App() {
         <Link to="/matrix" className={loc.pathname === '/matrix' ? 'active' : ''}>
           Психологический портрет
         </Link>
+  {/* 3D moved to separate workspace; link removed */}
         <Link to="/tarot" className={loc.pathname === '/tarot' ? 'active' : ''}>
           Метафорические карты
         </Link>
@@ -21,6 +22,7 @@ export default function App() {
         <Link to="/compat" className={loc.pathname === '/compat' ? 'active' : ''}>
           Совместимость
         </Link>
+        {/* Designs removed from main nav */}
         <Link to="/pro" className={loc.pathname === '/pro' ? 'active' : ''}>
           PRO
         </Link>

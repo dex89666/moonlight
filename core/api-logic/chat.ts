@@ -1,9 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { SYSTEM_PROMPT, MODEL } from '../config/ai'
-import { isAllowedTopic } from '../core/guard'
-import { getUser, incFree } from '../data/store'
+// ⭐️ ИСПРАВЛЕНО: Путь стал ../../config/ + добавлено .js
+import { SYSTEM_PROMPT, MODEL } from '../../config/ai.js' 
+// ⭐️ ИСПРАВЛЕНО: Путь стал ../ + добавлено .js
+import { isAllowedTopic } from '../guard.js' 
+// ⭐️ ИСПРАВЛЕНО: Путь стал ../../data/ + добавлено .js
+import { getUser, incFree } from '../../data/store.js' 
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+// ⭐️ ИСПРАВЛЕНО: 'export default' заменен на 'export async function'
+export async function handleChat(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed')
   const { userId = 'guest', prompt, category = 'matrix' } = req.body as {
     userId?: string
@@ -24,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     incFree(userId)
     return res.json({
       output:
-  'Пожалуйста, сформулируйте вопрос в рамках тем: нумерология, метафорические карты, совместимость, астрологический анализ.',
+    'Пожалуйста, сформулируйте вопрос в рамках тем: нумерология, метафорические карты, совместимость, астрологический анализ.',
       used: { freeLeft: Math.max(0, Number(process.env.FREE_MESSAGES_PER_DAY || 2) - getUser(userId).freeUsedToday), isPro: u.isPro },
       isPro: u.isPro,
       brief: !u.isPro,

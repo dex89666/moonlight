@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getUser } from '../data/store'
+// ⭐️ ИСПРАВЛЕНО: Путь стал ../../data/ + добавлено .js
+import { getUser } from '../../data/store.js'
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+// ⭐️ ИСПРАВЛЕНО: 'export default' заменен на 'export function'
+export function handleUser(req: VercelRequest, res: VercelResponse) {
   const userId = (req.query.userId as string) || 'guest'
   const u = getUser(userId)
   const daily = Number(process.env.FREE_MESSAGES_PER_DAY || 2)

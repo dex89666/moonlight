@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="700" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg2" x1="0" x2="1">
+      <stop offset="0" stop-color="#070116"/>
+      <stop offset="1" stop-color="#0a1b2e"/>
+    </linearGradient>
+    <radialGradient id="neb" cx="30%" cy="30%">
+      <stop offset="0" stop-color="#6f2ea6" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#0b1326" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="g2">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#bg2)"/>
+  <g opacity="0.38">
+    <ellipse cx="880" cy="140" rx="420" ry="220" fill="url(#neb)"/>
+  </g>
+
+  <!-- Rings and comet -->
+  <g transform="translate(620,360)">
+    <ellipse rx="260" ry="80" fill="none" stroke="#a35bff" stroke-width="6" opacity="0.18"/>
+    <ellipse rx="200" ry="60" fill="none" stroke="#ffb36b" stroke-width="2" opacity="0.22"/>
+    <path d="M -500 -80 Q -240 -40 -120 -10" stroke="#fff3d8" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+  </g>
+
+  <!-- Eye with slitted pupil and glowing ridges -->
+  <g transform="translate(600,330)">
+    <ellipse rx="280" ry="110" fill="#07101b" opacity="0.9"/>
+    <ellipse rx="200" ry="80" fill="#3b0b0b"/>
+    <ellipse rx="120" ry="44" fill="#ff924a" opacity="0.95"/>
+    <rect x="-14" y="-60" width="28" height="120" rx="14" fill="#100000"/>
+    <g fill="#ffd9b3" opacity="0.9">
+      <circle cx="-80" cy="-20" r="4"/>
+      <circle cx="40" cy="10" r="3"/>
+      <circle cx="110" cy="-30" r="2"/>
+    </g>
+  </g>
+
+  <g transform="translate(60,640)">
+    <text x="0" y="0" font-size="12" fill="#9c98b4">Concept 03 — ringed iris, soft comet trail and ember highlights.</text>
+  </g>
+</svg>

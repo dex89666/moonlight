@@ -1,11 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { isValidDateStr } from '../core/guard.js';
-import { pathNumber, summaryForPath } from '../core/numerology.js';
-import { getUser } from '../data/store.js';
-import { kv } from '../core/db'
+// ⭐️ ИСПРАВЛЕНО: Путь стал короче (из ../core/guard.js -> ../guard.js)
+import { isValidDateStr } from '../guard.js';
+// ⭐️ ИСПРАВЛЕНО: Путь стал короче
+import { pathNumber, summaryForPath } from '../numerology.js';
+// ⭐️ ИСПРАВЛЕНО: Путь стал короче + добавлено .js
+import { getUser } from '../store.js';
+// ⭐️ ИСПРАВЛЕНО: Путь стал короче + добавлено .js
+import { kv } from '../db.js'
 // import OpenAI from 'openai'; // Мы больше не используем библиотеку
 
-export default async function handler(
+// ⭐️ ИСПРАВЛЕНО: 'export default' заменен на 'export async function'
+export async function handleMatrix(
   req: VercelRequest,
   res: VercelResponse,
 ) {
@@ -41,7 +46,7 @@ export default async function handler(
     const p = pathNumber(birthDate);
     const s = summaryForPath(p);
 
-    // ⭐️ НОВОЕ (Шаг 1): Формируем структурированные данные для фронтенда
+    // (Этот блок кода мы уже добавляли, он остается)
     const matrixData = {
       keyNumber: p,
       summary: s.summary,
@@ -66,7 +71,6 @@ export default async function handler(
       const stub = isPro
         ? `Локальный тестовый PRO-отчёт по дате ${birthDate}. Детализированная демонстрация.`
         : FREE_PROMPT
-      // ⭐️ ИЗМЕНЕНО (Шаг 2): Добавляем matrixData в ответ
       return res.json({ analysis: stub, isPro, brief: !isPro, matrixData })
     }
     
@@ -100,7 +104,6 @@ export default async function handler(
         const stub = isPro
           ? `Локальный PRO-ответ по дате ${birthDate}. Проверьте настройки OPENAI_API_KEY.`
           : FREE_PROMPT;
-        // ⭐️ ИЗМЕНЕНО (Шаг 3): Добавляем matrixData в ответ
         return res.json({ analysis: stub, isPro, brief: !isPro, source: 'stub', matrixData });
       }
 
@@ -111,7 +114,6 @@ export default async function handler(
       const stub = isPro
         ? `Локальный PRO-ответ по дате ${birthDate}. Проверьте настройки OPENAI_API_KEY.`
         : FREE_PROMPT;
-      // ⭐️ ИЗМЕНЕНО (Шаг 4): Добавляем matrixData в ответ
       return res.json({ analysis: stub, isPro, brief: !isPro, source: 'stub', matrixData });
     } finally {
       clearTimeout(to);
@@ -123,15 +125,12 @@ export default async function handler(
     const stub = isPro
       ? `Локальный PRO-ответ по дате ${birthDate}. (AI вернул пустой ответ)`
       : FREE_PROMPT;
-    // ⭐️ ИЗМЕНЕНО (Шаг 5): Добавляем matrixData в ответ
     return res.json({ analysis: stub, isPro, brief: !isPro, source: 'stub', matrixData });
     }
 
-  // ⭐️ ИЗМЕНЕНО (Шаг 6): Добавляем matrixData в УСПЕШНЫЙ ответ
   return res.json({ analysis: text, isPro, brief: !isPro, source: 'ai', matrixData });
 
   } catch (error: any) {
-    // Теперь, если сервер не упадет, мы ГАРАНТИРОВАННО увидим ошибку здесь
     console.error('!!! ОШИБКА НА БЭКЕНДЕ:', error);
     return res.status(500).send(error.message || 'Произошла ошибка.');
   }

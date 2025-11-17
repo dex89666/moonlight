@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="700" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1">
+      <stop offset="0" stop-color="#02020a"/>
+      <stop offset="1" stop-color="#001022"/>
+    </linearGradient>
+    <radialGradient id="irisGrad" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#fff1c8" stop-opacity="1"/>
+      <stop offset="18%" stop-color="#ffd47a" stop-opacity="1"/>
+      <stop offset="50%" stop-color="#ff6b3a" stop-opacity="0.98"/>
+      <stop offset="85%" stop-color="#7a2308" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#2a0600"/>
+    </radialGradient>
+    <filter id="extraGlow">
+      <feGaussianBlur stdDeviation="18" result="g1"/>
+      <feMerge>
+        <feMergeNode in="g1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#bg)"/>
+
+  <!-- Milky band -->
+  <g opacity="0.25">
+    <path d="M-200 350 C 150 100, 350 550, 900 360 C 1150 300, 1400 320, 1600 350" stroke="#ffffff" stroke-opacity="0.12" stroke-width="120" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- Floating planets -->
+  <g>
+    <circle cx="100" cy="130" r="36" fill="#1e6b7a" opacity="0.95"/>
+    <circle cx="1030" cy="90" r="48" fill="#9b4dbc" opacity="0.95"/>
+    <circle cx="800" cy="520" r="30" fill="#d1a15a" opacity="0.95"/>
+  </g>
+
+  <!-- Nav mock -->
+  <g transform="translate(40,30)">
+    <rect width="1120" height="72" rx="14" fill="rgba(255,255,255,0.02)"/>
+    <g transform="translate(20,10)">
+      <rect x="0" y="0" width="160" height="52" rx="10" fill="#251332"/>
+      <text x="80" y="34" fill="#f1eaf8" font-size="14" text-anchor="middle">Домой</text>
+      <rect x="190" y="0" width="160" height="52" rx="10" fill="#1e2440"/>
+      <text x="270" y="34" fill="#e6eefc" font-size="14" text-anchor="middle">Таро</text>
+    </g>
+  </g>
+
+  <!-- Eye composition -->
+  <g transform="translate(600,360)">
+    <ellipse rx="320" ry="140" fill="rgba(255,150,40,0.06)"/>
+    <ellipse rx="220" ry="95" fill="url(#irisGrad)" filter="url(#softGlow) url(#extraGlow)"/>
+    <!-- vertical slit pupil (sharpened) -->
+    <path d="M -22 -76 Q 0 -18 22 -76 L 22 76 Q 0 18 -22 76 Z" fill="#050000"/>
+    <!-- ember sparks (dense layer) -->
+    <g id="embers" fill="#ffb36b" opacity="0.95">
+      <circle cx="-110" cy="-8" r="3.2"/>
+      <circle cx="-92" cy="6" r="2.2"/>
+      <circle cx="-60" cy="-28" r="1.8"/>
+      <circle cx="-24" cy="-12" r="2.6"/>
+      <circle cx="8" cy="10" r="2.0"/>
+      <circle cx="36" cy="18" r="2.6"/>
+      <circle cx="64" cy="-36" r="1.6"/>
+      <circle cx="92" cy="14" r="2.4"/>
+    </g>
+    <!-- small animated flicker (static SVG sim) -->
+    <g id="flicker" opacity="0.9">
+      <ellipse rx="36" ry="12" fill="#fff2c3" opacity="0.12" transform="translate(0,6)"/>
+      <ellipse rx="18" ry="6" fill="#ffd8a2" opacity="0.18" transform="translate(0,-6)"/>
+    </g>
+    <!-- comet trail (subtle) -->
+    <g transform="rotate(-14) translate(-420,-60)" opacity="0.78">
+      <path d="M0 0 C 100 8, 200 12, 340 6" stroke="#fff6d9" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.08"/>
+      <path d="M0 0 C 90 6, 180 8, 300 4" stroke="#ffcf98" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.12"/>
+      <circle cx="345" cy="4" r="3.8" fill="#ffdca3" opacity="0.95"/>
+    </g>
+  </g>
+
+  <g transform="translate(60,640)">
+    <text x="0" y="0" font-size="12" fill="#8f89a6">Concept 02 — vertical flame pupil, wide iris ring and soft nebula band.</text>
+  </g>
+</svg>
