@@ -4,7 +4,7 @@ import { isValidDateStr } from '../guard.js';
 // ⭐️ ИСПРАВЛЕНО: Путь стал короче
 import { pathNumber, summaryForPath } from '../numerology.js';
 // ⭐️ ИСПРАВЛЕНО: Путь стал короче + добавлено .js
-import { getUser } from '../store.js';
+import { getUser } from '../../data/store.js';
 // ⭐️ ИСПРАВЛЕНО: Путь стал короче + добавлено .js
 import { kv } from '../db.js'
 // import OpenAI from 'openai'; // Мы больше не используем библиотеку
