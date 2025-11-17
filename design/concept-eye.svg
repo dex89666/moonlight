@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="600" viewBox="0 0 1400 600" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" x2="1">
+      <stop offset="0" stop-color="#0b0026"/>
+      <stop offset="1" stop-color="#0b1836"/>
+    </linearGradient>
+    <radialGradient id="nebula" cx="60%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#912A9B" stop-opacity="0.24"/>
+      <stop offset="30%" stop-color="#FF6A3D" stop-opacity="0.06"/>
+      <stop offset="70%" stop-color="#1C255A" stop-opacity="0.0"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="eyeGlow" x="-200%" y="-200%" width="400%" height="400%">
+      <feGaussianBlur stdDeviation="18" result="g1"/>
+      <feMerge>
+        <feMergeNode in="g1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <radialGradient id="eyeCore" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#FFDFAF" stop-opacity="1"/>
+      <stop offset="35%" stop-color="#FF7A2B" stop-opacity="1"/>
+      <stop offset="70%" stop-color="#6B1200" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#0b0000" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="btnGrad" x1="0" x2="1">
+      <stop offset="0" stop-color="#41264f"/>
+      <stop offset="1" stop-color="#23143a"/>
+    </linearGradient>
+    <filter id="softInner" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feComposite in="SourceGraphic" in2="b" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="url(#bgGrad)"/>
+  <g opacity="0.9">
+    <ellipse cx="880" cy="200" rx="560" ry="250" fill="url(#nebula)"/>
+  </g>
+
+  <!-- Distant galaxy texture (subtle) -->
+  <g opacity="0.22" fill="#ffffff">
+    <circle cx="180" cy="120" r="1.6"/>
+    <circle cx="210" cy="220" r="1.2"/>
+    <circle cx="340" cy="80" r="2"/>
+    <circle cx="530" cy="140" r="1.4"/>
+    <circle cx="1200" cy="60" r="2.2"/>
+  </g>
+
+  <!-- Runic glyphs (very subtle) -->
+  <g opacity="0.07" transform="translate(60,40)" fill="#E8D0FF">
+    <text x="40" y="100" font-size="80" font-family="serif">ᚠ ᚢ ᚦ</text>
+    <text x="300" y="40" font-size="120" font-family="serif">✶</text>
+  </g>
+
+  <!-- Nav container (center top) -->
+  <g transform="translate(140,40)">
+    <rect x="0" y="0" width="1120" height="84" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.04)"/>
+    <!-- Buttons -->
+    <g id="nav-buttons" transform="translate(26,16)">
+      <!-- Home -->
+      <g transform="translate(0,0)">
+        <rect x="0" y="0" width="200" height="52" rx="12" fill="url(#btnGrad)" filter="url(#softInner)"/>
+        <text x="100" y="34" font-size="16" font-family="Inter, system-ui, sans-serif" fill="#EDE7FF" text-anchor="middle" font-weight="600">Домой</text>
+        <rect x="6" y="6" width="188" height="40" rx="10" fill="none" stroke="rgba(255,215,150,0.06)"/>
+        <!-- inner glow -->
+        <rect x="8" y="8" width="184" height="36" rx="9" fill="none" stroke="rgba(255,180,90,0.06)"/>
+      </g>
+      <!-- spacer -->
+      <g transform="translate(220,0)">
+        <rect x="0" y="0" width="200" height="52" rx="12" fill="url(#btnGrad)"/>
+        <text x="100" y="34" font-size="16" font-family="Inter, system-ui, sans-serif" fill="#DDE6FF" text-anchor="middle">Психологический портрет</text>
+      </g>
+      <g transform="translate(440,0)">
+        <rect x="0" y="0" width="200" height="52" rx="12" fill="url(#btnGrad)"/>
+        <text x="100" y="34" font-size="16" font-family="Inter, system-ui, sans-serif" fill="#DDE6FF" text-anchor="middle">Метафорические карты</text>
+      </g>
+      <g transform="translate(660,0)">
+        <rect x="0" y="0" width="200" height="52" rx="12" fill="url(#btnGrad)"/>
+        <text x="100" y="34" font-size="16" font-family="Inter, system-ui, sans-serif" fill="#DDE6FF" text-anchor="middle">Астрологический анализ</text>
+      </g>
+      <g transform="translate(880,0)">
+        <rect x="0" y="0" width="200" height="52" rx="12" fill="url(#btnGrad)"/>
+        <text x="100" y="34" font-size="16" font-family="Inter, system-ui, sans-serif" fill="#DDE6FF" text-anchor="middle">Совместимость</text>
+      </g>
+    </g>
+    <!-- PRO badge -->
+    <g transform="translate(1060,12)">
+      <rect x="0" y="0" width="80" height="36" rx="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,240,180,0.06)"/>
+      <text x="40" y="22" font-size="12" font-family="Inter, system-ui, sans-serif" fill="#FFDDAA" text-anchor="middle">PRO</text>
+    </g>
+  </g>
+
+  <!-- Main focal eye -->
+  <g transform="translate(760,310)">
+    <g filter="url(#eyeGlow)">
+      <ellipse cx="0" cy="0" rx="300" ry="120" fill="url(#eyeCore)" transform="rotate(0)"/>
+      <!-- iris ring -->
+      <ellipse cx="0" cy="0" rx="200" ry="80" fill="none" stroke="#FF8F3A" stroke-width="8" opacity="0.9"/>
+      <!-- vertical pupil -->
+      <rect x="-20" y="-80" width="40" height="160" rx="20" fill="#140000"/>
+      <!-- pupil flame core -->
+      <g>
+        <path d="M0 -68 C8 -44, 12 -32, 10 -8 C6 36, -6 36, -10 -8 C-12 -32, -8 -44, 0 -68 Z" fill="#FFDE9B" opacity="0.95"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- small descriptive label -->
+  <g transform="translate(80,520)">
+    <text x="0" y="0" font-size="13" fill="#A8A0B8" font-family="Inter, system-ui, sans-serif">Dark fantasy meets deep space — navigation with subtle runes and the Watching Eye as a dynamic focal element.</text>
+  </g>
+</svg>
