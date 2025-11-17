@@ -6,8 +6,7 @@
     },
     {
       "src": "apps/web/package.json",
-      "use": "@vercel/static-build",
-      "workdir": "apps/web"
+      "use": "@vercel/static-build"
     }
   ]
 }
