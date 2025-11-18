@@ -67,10 +67,7 @@ export async function handleTelegramWebhook(req: VercelRequest, res: VercelRespo
     // 2. Проверяем обычный /start
     else if (text === '/start') {
       const message = "Добро пожаловать! \n\nНажмите кнопку ниже, чтобы открыть приложение.";
-      const webAppUrl = process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}` 
-        : 'https://moonlight-rouge-gamma.vercel.app'; 
-      
+      const webAppUrl = 'https://moonlight-rouge-gamma.vercel.app';
       const replyMarkup = {
         inline_keyboard: [
           [ 
