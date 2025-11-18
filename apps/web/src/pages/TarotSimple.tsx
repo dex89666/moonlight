@@ -1,48 +1,40 @@
 import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { Button, Section } from '../components/UI';
-import { api, ApiAnalysisResponse } from '../api/client';
-import ProCTA from '../components/ProCTA';
 import { fetchApi } from '../lib/fetchApi';
 import { initTelegram } from '../lib/telegram';
+import { ApiAnalysisResponse } from '../api/client';
+import ReactMarkdown from 'react-markdown';
+import ProCTA from '../components/ProCTA';
 
 export default function TarotSimple() {
-  const [res, setRes] = useState<null | ApiAnalysisResponse>(null);
-  const [err, setErr] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [res, setRes] = useState<ApiAnalysisResponse | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleGetCard = async () => {
-    setIsLoading(true);
-    setErr('');
-    setRes(null);
-
+  const handleDraw = async () => {
+    setLoading(true);
     try {
-  // Вызываем наш новый API для метафорических карт
-  const userId = initTelegram() || 'guest'
-  const r = await fetchApi<ApiAnalysisResponse>('/api/tarot', { userId });
-  setRes(r);
-    } catch (e: any) {
-      setErr(e?.message || 'Ошибка');
+      const userId = initTelegram() || 'guest';
+      const data = await fetchApi<ApiAnalysisResponse>('/api/tarot', { userId });
+      setRes(data);
+    } catch (e) {
+      alert('Ошибка');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
     <Section>
       <h2>Карта дня</h2>
-      <Button onClick={handleGetCard} disabled={isLoading}>
-  {isLoading ? 'Тасуем колоду...' : 'Сгенерировать отчет'}
-      </Button>
-
-      {err && <p className="error">{err}</p>}
-
+      <div style={{ textAlign: 'center', margin: '20px 0' }}>
+        <div style={{ fontSize: '4rem', marginBottom: '10px' }}>🃏</div>
+        <Button onClick={handleDraw} disabled={loading}>
+          {loading ? 'Вытягиваем...' : 'Вытянуть карту'}
+        </Button>
+      </div>
       {res && (
-        <div className="card" style={{ textAlign: 'left', marginTop: '1rem' }}>
+        <div className="card">
           <ReactMarkdown>{res.analysis}</ReactMarkdown>
-          {res.source === 'stub' && (
-            <p style={{ color: '#999', marginTop: '0.5rem' }}>Это локальный тестовый ответ (stub). Настройте OPENAI_API_KEY для реальных ответов.</p>
-          )}
           {res.brief && <ProCTA reason={res.briefReason} />}
         </div>
       )}
