@@ -1,3 +1,4 @@
+// @ts-ignore
 import { createClient } from '@vercel/kv'
 
 // If Vercel KV envs are not present in local dev, the @upstash/redis client
