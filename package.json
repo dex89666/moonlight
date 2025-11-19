@@ -6,7 +6,7 @@
     "dev": "vite",
     "dev:api": "tsx _local_server.ts",
     "dev:api:stub": "SET USE_STUB=true && tsx _local_server.ts",
-    "build": "npm run build -w web",
+    "build": "cd apps/web && npm install && npm run build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
