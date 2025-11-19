@@ -7,9 +7,7 @@
     {
       "src": "apps/web/package.json",
       "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
+      "config": { "distDir": "dist" }
     }
   ],
   "routes": [
@@ -18,8 +16,11 @@
       "dest": "/api/[...slug]"
     },
     {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/apps/web/dist/index.html"
+      "dest": "/apps/web/index.html"
     }
   ]
 }
