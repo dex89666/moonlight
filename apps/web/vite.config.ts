@@ -4,15 +4,9 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  root: '.', // Явно указываем текущую папку как корень
-  base: './', // Относительные пути
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json'] // Помогаем найти расширения
-  },
+  base: '/', // ⭐️ Вернули слеш
   build: {
     outDir: 'dist',
+    emptyOutDir: true,
   }
 })
