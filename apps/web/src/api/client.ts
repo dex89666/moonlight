@@ -1,7 +1,8 @@
 // ⭐️ ИСПРАВЛЕНО: Умный выбор адреса
 // Если мы разрабатываем (DEV) -> http://localhost:3000
 // Если мы в продакшене (Vercel) -> "" (пустая строка, то есть текущий домен)
-export const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:3000' : '';
+// ⭐️ ЖЕЛЕЗОБЕТОННО: Всегда используем текущий домен
+export const API_BASE_URL = '';
 
 export type ApiAnalysisResponse = {
   analysis: string
