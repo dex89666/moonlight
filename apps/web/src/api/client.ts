@@ -1,5 +1,7 @@
 // Указываем прямой адрес бэкенда
-export const API_BASE_URL = 'http://localhost:3000'; 
+// Если мы в режиме разработки (локально) -> используем localhost
+// Если мы в продакшене (Vercel) -> используем пустую строку (относительный путь)
+export const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:3000' : '';
 
 export type ApiAnalysisResponse = {
   analysis: string
