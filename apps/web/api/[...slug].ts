@@ -1,10 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// 0. ЛОГ: Файл начал загружаться
-console.log('[API] 🚀 Файл [...slug].ts начал загрузку...');
-
-// Пытаемся импортировать логику.
-// Если папка 'core' недоступна, код упадет ПРЯМО ЗДЕСЬ.
+// Импорт логики из core (обязательно с .js)
 import { handleMatrix } from '../core/api-logic/matrix.js';
 import { handleCompat } from '../core/api-logic/compat.js';
 import { handleTelegramWebhook } from '../core/api-logic/telegram/webhook.js';
@@ -21,6 +17,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 1. ЛОГ: Запрос пришел
   console.log(`[API] 📥 Входящий запрос: ${req.method} ${req.url}`);
   
+  // ⭐️ НОВОЕ: Смотрим, что внутри посылки!
+  console.log('[API] 📦 BODY (Данные):', JSON.stringify(req.body));
+
   const url = new URL(req.url!, `https://${req.headers.host}`);
   const path = url.pathname;
 
@@ -54,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error(`[API] ❌ КРИТИЧЕСКАЯ ОШИБКА в ${path}:`, error);
     return res.status(500).json({ 
       error: error.message, 
-      stack: error.stack, // Покажем стек ошибки, чтобы понять где упало
+      stack: error.stack,
       location: 'Inside Handler' 
     });
   }
