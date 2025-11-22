@@ -1,6 +1,6 @@
-// Указываем прямой адрес бэкенда
-// Если мы в режиме разработки (локально) -> используем localhost
-// Если мы в продакшене (Vercel) -> используем пустую строку (относительный путь)
+// ⭐️ ИСПРАВЛЕНО: Умный выбор адреса
+// Если мы разрабатываем (DEV) -> http://localhost:3000
+// Если мы в продакшене (Vercel) -> "" (пустая строка, то есть текущий домен)
 export const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:3000' : '';
 
 export type ApiAnalysisResponse = {
@@ -9,48 +9,52 @@ export type ApiAnalysisResponse = {
   brief: boolean
   briefReason?: string
   source?: 'ai' | 'stub'
-  
-  // ⭐️ НОВОЕ: Добавляем необязательное поле для структурированных данных
+  // Данные для "живой матрицы"
   matrixData?: {
     keyNumber?: number
     summary?: string
     traits?: string[]
-    // (Мы сделаем его гибким, чтобы он работал и для compat.tsx)
-    energies?: number[] 
+    energies?: number[]
   }
 }
 
 export const api = {
+  // Этот метод автоматически подставит правильный API_BASE_URL
   async post<T>(url: string, body: unknown): Promise<T> {
-    // Ensure we include Telegram userId when available, but don't overwrite an explicit body.userId
-    const sdkUserId = (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user?.id
-    let bodyWithUser: any
+    // Пытаемся получить ID из Telegram WebApp (если есть)
+    const sdkUserId = (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    
+    let bodyWithUser: any;
     if (typeof body === 'object' && body !== null) {
-      // respect userId passed explicitly in body; use SDK id only as fallback
-      bodyWithUser = { ...(body as any) }
-      if (!bodyWithUser.userId && sdkUserId) bodyWithUser.userId = sdkUserId
+      bodyWithUser = { ...(body as any) };
+      // Если userId не передан явно, добавляем его из Telegram
+      if (!bodyWithUser.userId && sdkUserId) {
+        bodyWithUser.userId = sdkUserId.toString();
+      }
     } else {
-      bodyWithUser = { userId: sdkUserId, payload: body }
+      bodyWithUser = { userId: sdkUserId, payload: body };
     }
 
-    // Добавляем API_BASE_URL к каждому запросу
-    const res = await fetch(`${API_BASE_URL}${url}`, {
+    // ⭐️ ВАЖНО: Собираем полный адрес
+    const fullUrl = `${API_BASE_URL}${url}`;
+
+    const res = await fetch(fullUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bodyWithUser),
     });
 
     if (!res.ok) {
-      throw new Error(await res.text());
+      const text = await res.text();
+      throw new Error(text || `Error ${res.status}`);
     }
     
-    const data = await res.json();
-    return data as T;
+    return await res.json() as T;
   },
   
   async get<T>(url: string): Promise<T> {
-    // Добавляем API_BASE_URL к каждому запросу
-    const res = await fetch(`${API_BASE_URL}${url}`);
+    const fullUrl = `${API_BASE_URL}${url}`;
+    const res = await fetch(fullUrl);
     if (!res.ok) {
       throw new Error(await res.text());
     }
