@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@vercel/kv": "^3.0.0",
-    "@vercel/node": "^3.2.29",
+    "@vercel/node": "^5.5.9",
     "dotenv": "^17.2.3",
     "openai": "^6.9.1",
     "react": "^19.1.1",
