@@ -5,15 +5,15 @@ console.log('[API] 🚀 Файл [...slug].ts начал загрузку...');
 
 // Пытаемся импортировать логику.
 // Если папка 'core' недоступна, код упадет ПРЯМО ЗДЕСЬ.
-import { handleMatrix } from '../../../core/api-logic/matrix.js';
-import { handleCompat } from '../../../core/api-logic/compat.js';
-import { handleTelegramWebhook } from '../../../core/api-logic/telegram/webhook.js';
-import { handlePro } from '../../../core/api-logic/pro.js';
-import { handleTarot } from '../../../core/api-logic/tarot.js';
-import { handleZodiac } from '../../../core/api-logic/zodiac.js';
-import { handleUser } from '../../../core/api-logic/user.js';
-import { handleChat } from '../../../core/api-logic/chat.js';
-import { handleHealth } from '../../../core/api-logic/health.js';
+import { handleMatrix } from '../core/api-logic/matrix.js';
+import { handleCompat } from '../core/api-logic/compat.js';
+import { handleTelegramWebhook } from '../core/api-logic/telegram/webhook.js';
+import { handlePro } from '../core/api-logic/pro.js';
+import { handleTarot } from '../core/api-logic/tarot.js';
+import { handleZodiac } from '../core/api-logic/zodiac.js';
+import { handleUser } from '../core/api-logic/user.js';
+import { handleChat } from '../core/api-logic/chat.js';
+import { handleHealth } from '../core/api-logic/health.js';
 
 console.log('[API] ✅ Все импорты прошли успешно!');
 
