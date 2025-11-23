@@ -17,10 +17,15 @@ export default function Zodiac() {
     setLoading(true);
     try {
       const userId = initTelegram() || 'guest';
+      // Добавляем лог в консоль браузера для проверки
+      console.log('Отправляем запрос:', { userId, sign });
+      
       const data = await fetchApi<ApiAnalysisResponse>('/api/zodiac', { userId, sign });
       setRes(data);
-    } catch (e) {
-      alert('Ошибка');
+    } catch (e: any) {
+      // ⭐️ ИЗМЕНЕНО: Выводим реальную ошибку, чтобы понять причину
+      alert(`Ошибка сервера: ${e.message || JSON.stringify(e)}`);
+      console.error(e);
     } finally {
       setLoading(false);
     }
