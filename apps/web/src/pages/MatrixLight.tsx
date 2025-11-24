@@ -4,11 +4,25 @@ import { fetchApi } from '../lib/fetchApi';
 import { ApiAnalysisResponse } from '../api/client';
 import ProCTA from '../components/ProCTA';
 
-// Вспомогательная функция для форматирования даты (DD.MM.YYYY)
+// Хелперы
 function formatDate(date: Date): string {
   const d = date.getDate().toString().padStart(2, '0');
   const m = (date.getMonth() + 1).toString().padStart(2, '0');
   const y = date.getFullYear();
+  return `${d}.${m}.${y}`;
+}
+function formatToInput(dateStr: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('.');
+  if (parts.length !== 3) return '';
+  const [d, m, y] = parts;
+  return `${y}-${m}-${d}`;
+}
+function formatFromInput(dateStr: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return '';
+  const [y, m, d] = parts;
   return `${d}.${m}.${y}`;
 }
 
@@ -19,38 +33,53 @@ export default function MatrixLight() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTg, setIsTg] = useState(false);
 
-  // Инициализация Telegram
   useEffect(() => {
+    // DEBUG 1: Проверка старта
+    console.log('MatrixLight mounted');
     const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
+    if (tg && tg.initData) {
       setIsTg(true);
       tg.ready();
       tg.expand();
     }
   }, []);
 
-  // Открытие календаря (Самый надежный способ)
   const showDatePicker = () => {
+    // DEBUG 2: Нажатие на календарь
+    alert('DEBUG: Кнопка календаря нажата');
+    
     const tg = (window as any).Telegram?.WebApp;
-    if (!tg) return;
+    if (!tg) {
+      alert('ERROR: Telegram WebApp не найден!');
+      return;
+    }
 
-    // Вызываем нативный календарь
-    tg.showDatePicker({
-      title_text: "Выберите дату рождения",
-      min_date: new Date('1900-01-01'),
-      max_date: new Date()
-    }, (selectedDate: any) => {
-      // Callback: если дата выбрана
-      if (selectedDate) {
-        setD(formatDate(new Date(selectedDate)));
-      }
-    });
+    try {
+        alert('DEBUG: Открываю нативный календарь...');
+        tg.showDatePicker({
+            title_text: "Выберите дату",
+            max_date: new Date()
+        }, (selectedDate: any) => {
+            if (selectedDate) {
+                alert(`DEBUG: Дата выбрана: ${selectedDate}`);
+                setD(formatDate(new Date(selectedDate)));
+            } else {
+                alert('DEBUG: Календарь закрыт без выбора');
+            }
+        });
+    } catch (e: any) {
+        alert(`CRASH Calendar: ${e.message}`);
+    }
   };
 
-  // Отправка формы
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!d) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    alert('DEBUG: Нажата кнопка Рассчитать'); // Жучок 3
+    
+    if (!d) {
+        alert('ERROR: Дата пустая');
+        return;
+    }
 
     setIsLoading(true);
     setErr('');
@@ -60,15 +89,29 @@ export default function MatrixLight() {
       const tg = (window as any).Telegram?.WebApp;
       const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'guest';
       
-      // Отправляем запрос на сервер (как в Tarot)
-      const data = await fetchApi<ApiAnalysisResponse>('/api/matrix', { 
-        birthDate: d, 
-        userId 
+      alert(`DEBUG: Отправляем запрос на API... User: ${userId}, Date: ${d}`);
+
+      // Прямой запрос через fetch для проверки (минуя обертку, чтобы видеть чистую ошибку)
+      const response = await fetch('/api/matrix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ birthDate: d, userId })
       });
+
+      alert(`DEBUG: Статус ответа сервера: ${response.status}`);
+
+      if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Server Error ${response.status}: ${text}`);
+      }
+
+      const data = await response.json();
+      alert('DEBUG: Ответ получен! JSON OK');
       setRes(data);
+
     } catch (e: any) {
-      console.error(e);
-      setErr('Ошибка при расчете. Попробуйте еще раз.');
+      alert(`CRASH API: ${e.message}`);
+      setErr(e.message || 'Ошибка');
     } finally {
       setIsLoading(false);
     }
@@ -76,39 +119,28 @@ export default function MatrixLight() {
 
   return (
     <Section>
-      <h2>Матрица Судьбы</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      <h2>Матрица (DEBUG MODE)</h2>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         
-        {/* Блок выбора даты */}
         {isTg ? (
-          <Button type="button" onClick={showDatePicker} style={{ background: '#333', border: '1px solid #555' }}>
-            {d ? `Выбрано: ${d}` : '📅 Выбрать дату'}
+          <Button type="button" onClick={showDatePicker} style={{ border: '2px solid yellow' }}>
+            {d || '🔍 ТЕСТ КАЛЕНДАРЯ'}
           </Button>
         ) : (
-          // Фоллбэк для браузера
-          <input 
-            type="date" 
-            className="input" 
-            onChange={(e) => {
-               if(e.target.valueAsDate) setD(formatDate(e.target.valueAsDate));
-            }} 
-          />
+          <input type="date" className="input" value={formatToInput(d)} onChange={(e) => setD(formatFromInput(e.target.value))} />
         )}
 
-        {/* Кнопка расчета */}
-        <Button onClick={() => handleSubmit()} disabled={!d || isLoading} variant="primary">
-          {isLoading ? 'Считаем...' : 'Рассчитать матрицу'}
+        <Button type="submit" disabled={!d || isLoading} variant="primary" style={{ border: '2px solid red' }}>
+          {isLoading ? 'Думаю...' : '🚀 ТЕСТ ЗАПРОСА'}
         </Button>
-      </div>
+      </form>
 
-      {/* Вывод ошибки */}
-      {err && <p className="error" style={{ marginTop: '10px', color: 'red' }}>{err}</p>}
+      {err && <p className="error" style={{ color: 'red', border: '1px solid red', padding: '10px' }}>{err}</p>}
 
-      {/* Вывод результата */}
       {res && (
-        <div className="card" style={{ marginTop: '20px' }}>
-          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{res.analysis}</pre>
-          {res.brief && <ProCTA reason={res.briefReason} />}
+        <div className="card">
+          <h3>Успех!</h3>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>{JSON.stringify(res, null, 2)}</pre>
         </div>
       )}
     </Section>
