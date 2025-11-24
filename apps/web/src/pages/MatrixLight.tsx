@@ -32,6 +32,7 @@ export default function MatrixLight() {
   const [err, setErr] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isTg, setIsTg] = useState(false);
+  const [hasTgPicker, setHasTgPicker] = useState(false);
 
   useEffect(() => {
     // Проверка старта
@@ -39,6 +40,7 @@ export default function MatrixLight() {
     const tg = (window as any).Telegram?.WebApp;
     if (tg && tg.initData) {
       setIsTg(true);
+      setHasTgPicker(typeof tg.showDatePicker === 'function');
       try { tg.ready(); } catch {}
       try { tg.expand(); } catch {}
     }
@@ -46,19 +48,18 @@ export default function MatrixLight() {
 
   const showDatePicker = () => {
     const tg = (window as any).Telegram?.WebApp;
-    if (!tg || !tg.showDatePicker) {
-      // no Telegram picker — caller should use native input
-      return;
-    }
-
-    try {
-      tg.showDatePicker({ title_text: 'Выберите дату', max_date: new Date() }, (selectedDate: any) => {
-        if (selectedDate) {
-          setD(formatDate(new Date(selectedDate)));
-        }
-      });
-    } catch (e: any) {
-      console.error('Calendar open failed', e);
+    if (tg && typeof tg.showDatePicker === 'function') {
+      try {
+        tg.showDatePicker({ title_text: 'Выберите дату', max_date: new Date() }, (selectedDate: any) => {
+          if (selectedDate) setD(formatDate(new Date(selectedDate)));
+        });
+      } catch (e: any) {
+        console.error('Calendar open failed', e);
+      }
+    } else {
+      // no tg picker available — fall back to native input by focusing it
+      const el = document.getElementById('matrix-native-date') as HTMLInputElement | null;
+      if (el) el.showPicker ? el.showPicker() : el.focus();
     }
   };
 
@@ -94,12 +95,12 @@ export default function MatrixLight() {
       <h2>Матрица (DEBUG MODE)</h2>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         
-        {isTg ? (
+        {isTg && hasTgPicker ? (
           <Button type="button" onClick={showDatePicker} style={{ border: '2px solid yellow' }}>
             {d || '🔍 ТЕСТ КАЛЕНДАРЯ'}
           </Button>
         ) : (
-          <input type="date" className="input" value={formatToInput(d)} onChange={(e) => setD(formatFromInput(e.target.value))} />
+          <input id="matrix-native-date" type="date" className="input" value={formatToInput(d)} onChange={(e) => setD(formatFromInput(e.target.value))} />
         )}
 
         <Button type="submit" disabled={!d || isLoading} variant="primary" style={{ border: '2px solid red' }}>

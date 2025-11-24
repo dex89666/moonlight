@@ -25,7 +25,13 @@ export async function fetchApi<T>(path: string, body?: unknown, opts?: RequestIn
     try {
       const json = await res.json()
       if (json && typeof json === 'object' && 'message' in json) err.message = (json as any).message
-    } catch {}
+      else if (typeof json === 'string') err.message = json
+    } catch (parseErr) {
+      try {
+        const txt = await res.text()
+        if (txt) err.message = txt
+      } catch {}
+    }
     throw err
   }
 
