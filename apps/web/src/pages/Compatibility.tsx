@@ -30,19 +30,23 @@ export default function Compatibility() {
 
   const showDatePicker = (index: 1 | 2) => {
     const tg = (window as any).Telegram?.WebApp;
-    if (!tg) return;
+    if (!tg || !tg.showDatePicker) return;
 
-    tg.showDatePicker({
-      title_text: index === 1 ? "Ваша дата" : "Дата партнера",
-      min_date: new Date('1900-01-01'),
-      max_date: new Date()
-    }, (selectedDate: any) => {
-      if (selectedDate) {
-        const str = formatDate(new Date(selectedDate));
-        if (index === 1) setD1(str);
-        else setD2(str);
-      }
-    });
+    try {
+      tg.showDatePicker({
+        title_text: index === 1 ? 'Ваша дата' : 'Дата партнера',
+        min_date: new Date('1900-01-01'),
+        max_date: new Date()
+      }, (selectedDate: any) => {
+        if (selectedDate) {
+          const str = formatDate(new Date(selectedDate));
+          if (index === 1) setD1(str);
+          else setD2(str);
+        }
+      });
+    } catch (e) {
+      console.error('showDatePicker failed', e);
+    }
   };
 
   const handleSubmit = async () => {
@@ -80,7 +84,7 @@ export default function Compatibility() {
               {d1 || 'Выбрать дату 📅'}
             </Button>
           ) : (
-             <input type="date" className="input" onChange={(e) => e.target.valueAsDate && setD1(formatDate(e.target.valueAsDate))} />
+             <input type="date" className="input" onChange={(e) => e.target.value && setD1(formatDate(new Date(e.target.value)))} />
           )}
         </div>
 
@@ -92,7 +96,7 @@ export default function Compatibility() {
               {d2 || 'Выбрать дату 📅'}
             </Button>
           ) : (
-             <input type="date" className="input" onChange={(e) => e.target.valueAsDate && setD2(formatDate(e.target.valueAsDate))} />
+             <input type="date" className="input" onChange={(e) => e.target.value && setD2(formatDate(new Date(e.target.value)))} />
           )}
         </div>
 

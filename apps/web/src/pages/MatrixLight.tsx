@@ -34,47 +34,37 @@ export default function MatrixLight() {
   const [isTg, setIsTg] = useState(false);
 
   useEffect(() => {
-    // DEBUG 1: Проверка старта
+    // Проверка старта
     console.log('MatrixLight mounted');
     const tg = (window as any).Telegram?.WebApp;
     if (tg && tg.initData) {
       setIsTg(true);
-      tg.ready();
-      tg.expand();
+      try { tg.ready(); } catch {}
+      try { tg.expand(); } catch {}
     }
   }, []);
 
   const showDatePicker = () => {
-    // DEBUG 2: Нажатие на календарь
-    alert('DEBUG: Кнопка календаря нажата');
-    
     const tg = (window as any).Telegram?.WebApp;
-    if (!tg) {
-      alert('ERROR: Telegram WebApp не найден!');
+    if (!tg || !tg.showDatePicker) {
+      // no Telegram picker — caller should use native input
       return;
     }
 
     try {
-        alert('DEBUG: Открываю нативный календарь...');
-        tg.showDatePicker({
-            title_text: "Выберите дату",
-            max_date: new Date()
-        }, (selectedDate: any) => {
-            if (selectedDate) {
-                alert(`DEBUG: Дата выбрана: ${selectedDate}`);
-                setD(formatDate(new Date(selectedDate)));
-            } else {
-                alert('DEBUG: Календарь закрыт без выбора');
-            }
-        });
+      tg.showDatePicker({ title_text: 'Выберите дату', max_date: new Date() }, (selectedDate: any) => {
+        if (selectedDate) {
+          setD(formatDate(new Date(selectedDate)));
+        }
+      });
     } catch (e: any) {
-        alert(`CRASH Calendar: ${e.message}`);
+      console.error('Calendar open failed', e);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('DEBUG: Нажата кнопка Рассчитать'); // Жучок 3
+  console.log('submit', d);
     
     if (!d) {
         alert('ERROR: Дата пустая');
@@ -88,30 +78,12 @@ export default function MatrixLight() {
     try {
       const tg = (window as any).Telegram?.WebApp;
       const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'guest';
-      
-      alert(`DEBUG: Отправляем запрос на API... User: ${userId}, Date: ${d}`);
 
-      // Прямой запрос через fetch для проверки (минуя обертку, чтобы видеть чистую ошибку)
-      const response = await fetch('/api/matrix', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ birthDate: d, userId })
-      });
-
-      alert(`DEBUG: Статус ответа сервера: ${response.status}`);
-
-      if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Server Error ${response.status}: ${text}`);
-      }
-
-      const data = await response.json();
-      alert('DEBUG: Ответ получен! JSON OK');
-      setRes(data);
-
+      const data = await fetchApi<ApiAnalysisResponse>('/api/matrix', { birthDate: d, userId });
+      setRes(data as ApiAnalysisResponse);
     } catch (e: any) {
-      alert(`CRASH API: ${e.message}`);
-      setErr(e.message || 'Ошибка');
+      console.error('API error', e);
+      setErr(e?.message || 'Ошибка');
     } finally {
       setIsLoading(false);
     }
