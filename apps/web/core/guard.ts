@@ -1,4 +1,16 @@
-console.log('✅ [LOG] Файл core/guard.ts начал загружаться...');
+console.log('✅ [LOG] Файл core/guard.ts загружен');
+
+// ⭐️ ВАЖНО: Список должен быть на АНГЛИЙСКОМ, так как мы переводим в zodiac.ts
+export const ZODIAC_SIGNS = [
+  'aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo',
+  'libra', 'scorpio', 'sagittarius', 'capricorn', 'aquarius', 'pisces'
+];
+
+export function isValidSign(sign: string): boolean {
+  // Проверяем, есть ли знак в списке
+  return ZODIAC_SIGNS.includes(sign.toLowerCase());
+}
+
 export function isValidDateStr(d: string): boolean {
   const m = d.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
   if (!m) return false
@@ -9,9 +21,4 @@ export function isValidDateStr(d: string): boolean {
 
 export function isAllowedTopic(t: string): boolean {
   return ['matrix', 'compat', 'tarot', 'zodiac'].includes(t)
-}
-
-export function isValidSign(s: string): boolean {
-  const set = new Set(['овен','телец','близнецы','рак','лев','дева','весы','скорпион','стрелец','козерог','водолей','рыбы'])
-  return set.has(s)
 }
