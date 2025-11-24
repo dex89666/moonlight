@@ -1,27 +1,15 @@
-
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Button, Section } from '../components/UI';
-import { api, ApiAnalysisResponse } from '../api/client';
-import ProCTA from '../components/ProCTA';
 import { fetchApi } from '../lib/fetchApi';
-import { initTelegram } from '../lib/telegram';
+import ProCTA from '../components/ProCTA';
+import { ApiAnalysisResponse } from '../api/client';
 
-const LOCAL_STORAGE_KEY_BASE_1 = 'compatBirthDate1';
-const LOCAL_STORAGE_KEY_BASE_2 = 'compatBirthDate2';
-
-// ... (Тут функции formatDate, formatFromInput, formatToInput - они не меняются) ...
+// Вспомогательные функции (те же самые)
 function formatDate(date: Date): string {
   const d = date.getDate().toString().padStart(2, '0');
-  const m = (date.getMonth() + 1).toString().padStart(2, '0'); // Месяцы с 0
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
   const y = date.getFullYear();
-  return `${d}.${m}.${y}`;
-}
-function formatFromInput(dateStr: string): string {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return '';
-  const [y, m, d] = parts;
   return `${d}.${m}.${y}`;
 }
 function formatToInput(dateStr: string): string {
@@ -31,208 +19,144 @@ function formatToInput(dateStr: string): string {
   const [d, m, y] = parts;
   return `${y}-${m}-${d}`;
 }
-
+function formatFromInput(dateStr: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return '';
+  const [y, m, d] = parts;
+  return `${d}.${m}.${y}`;
+}
 
 export default function Compatibility() {
   const [d1, setD1] = useState('');
   const [d2, setD2] = useState('');
-  const [res, setRes] = useState<null | ApiAnalysisResponse>(null);
+  const [res, setRes] = useState<ApiAnalysisResponse | null>(null);
   const [err, setErr] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isTg, setIsTg] = useState(false);
 
-  const [storageKey1, setStorageKey1] = useState<string | null>(null);
-  const [storageKey2, setStorageKey2] = useState<string | null>(null);
-  const [tg, setTg] = useState<any | null>(() => {
-    if (typeof window !== 'undefined' && window.Telegram) {
-      return window.Telegram.WebApp;
-    }
-    return null;
-  });
-
-  // ... (Эффекты 1 и 2, showDatePicker, handleBrowserDateChange не меняются) ...
   useEffect(() => {
-    const id = initTelegram() || 'guest';
-    setStorageKey1(`${LOCAL_STORAGE_KEY_BASE_1}_${id}`);
-    setStorageKey2(`${LOCAL_STORAGE_KEY_BASE_2}_${id}`);
-    if (!tg && typeof window !== 'undefined' && window.Telegram) {
-      const webApp = window.Telegram.WebApp;
-      setTg(webApp);
-      webApp.ready();
-    } else if (tg) {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg && tg.initData) {
+      setIsTg(true);
       tg.ready();
+      tg.expand();
     }
-  }, [tg]);
-  useEffect(() => {
-    if (storageKey1) {
-      const savedDate1 = localStorage.getItem(storageKey1);
-      if (savedDate1) setD1(savedDate1);
-    }
-    if (storageKey2) {
-      const savedDate2 = localStorage.getItem(storageKey2);
-      if (savedDate2) setD2(savedDate2);
-    }
-  }, [storageKey1, storageKey2]);
-  const showDatePicker = (dateIndex: 1 | 2) => {
+  }, []);
+
+  const showDatePicker = (index: 1 | 2) => {
+    const tg = (window as any).Telegram?.WebApp;
     if (!tg) return;
+
     tg.HapticFeedback.impactOccurred('light');
-    tg.showDatePicker((selectedDate: Date) => {
+
+    // ⭐️ ИСПРАВЛЕНИЕ: Передаем объект с настройками первым аргументом!
+    tg.showDatePicker({
+      title_text: index === 1 ? "Ваша дата рождения" : "Дата рождения партнера",
+      min_date: new Date('1900-01-01'),
+      max_date: new Date()
+    }, (selectedDate: any) => {
       if (selectedDate) {
-        tg.HapticFeedback.impactOccurred('medium');
-        const formattedDate = formatDate(selectedDate);
-        if (dateIndex === 1) {
-          setD1(formattedDate);
-          if (storageKey1) localStorage.setItem(storageKey1, formattedDate);
-        } else {
-          setD2(formattedDate);
-          if (storageKey2) localStorage.setItem(storageKey2, formattedDate);
-        }
+        const str = formatDate(new Date(selectedDate));
+        if (index === 1) setD1(str);
+        else setD2(str);
       }
     });
   };
-  const handleBrowserDateChange = (
-    e: React.ChangeEvent<HTMLInputElement>, 
-    dateIndex: 1 | 2
-  ) => {
-    const formattedDate = formatFromInput(e.target.value);
-    if (dateIndex === 1) {
-      setD1(formattedDate);
-      if (storageKey1) localStorage.setItem(storageKey1, formattedDate);
-    } else {
-      setD2(formattedDate);
-      if (storageKey2) localStorage.setItem(storageKey2, formattedDate);
-    }
+
+  const handleEnergyClick = (n: number) => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) tg.HapticFeedback.notificationOccurred('success');
+    alert(`Энергия совместимости: ${n}`);
   };
 
-  const handleEnergyClick = (energyNumber: number) => {
-    tg?.HapticFeedback.notificationOccurred('success');
-    alert(`Вы нажали на энергию ${energyNumber}. \n\nЗдесь будет PRO-описание этой энергии!`);
-  };
-
-  const handleClear = (dateIndex: 1 | 2) => {
-    tg?.HapticFeedback.impactOccurred('light');
-    if (dateIndex === 1) {
-      setD1('');
-      if (storageKey1) localStorage.removeItem(storageKey1);
-    } else {
-      setD2('');
-      if (storageKey2) localStorage.removeItem(storageKey2);
-    }
-    setRes(null);
-    setErr('');
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    tg?.HapticFeedback.impactOccurred('medium');
-    
     setIsLoading(true);
     setErr('');
     setRes(null);
 
     try {
-      const userId = initTelegram() || 'guest';
-      const r = await fetchApi<ApiAnalysisResponse>('/api/compat', {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg) tg.HapticFeedback.impactOccurred('medium');
+      
+      const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'guest';
+      
+      const data = await fetchApi<ApiAnalysisResponse>('/api/compat', {
         birthDate1: d1,
         birthDate2: d2,
-        userId,
+        userId
       });
-      setRes(r);
+      setRes(data);
     } catch (e: any) {
-      setErr(e?.message || 'Ошибка');
+      setErr(e.message || 'Ошибка сервера');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Компонент для поля ввода даты (чтобы не дублировать код)
+  const DateField = ({ label, value, index }: { label: string, value: string, index: 1 | 2 }) => (
+    <div style={{ marginBottom: '10px' }}>
+      <label style={{ display: 'block', marginBottom: '5px', color: '#888', fontSize: '0.9rem' }}>{label}</label>
+      {isTg ? (
+        <Button type="button" onClick={() => showDatePicker(index)} variant="outline" style={{ width: '100%', justifyContent: 'flex-start' }}>
+          {value || 'Выбрать дату 📅'}
+        </Button>
+      ) : (
+        <input 
+          type="date" 
+          className="input" 
+          value={formatToInput(value)} 
+          onChange={(e) => {
+             const val = formatFromInput(e.target.value);
+             if (index === 1) setD1(val); else setD2(val);
+          }}
+          style={{ width: '100%', padding: '12px' }} 
+        />
+      )}
+    </div>
+  );
+
   return (
     <Section>
       <h2>Совместимость</h2>
+      
       <form onSubmit={handleSubmit}>
-        
-        <div className="date-picker-control" style={{ marginBottom: '1rem' }}>
-          {!tg ? (
-            <div className="browser-date-picker" style={{ display: 'flex', alignItems: 'center' }}>
-              <label htmlFor="birthdate-picker-1" style={{ marginRight: '10px' }}>Ваша дата:</label>
-              <input 
-                type="date"
-                id="birthdate-picker-1"
-                value={formatToInput(d1)}
-                onChange={(e) => handleBrowserDateChange(e, 1)}
-                disabled={isLoading}
-              />
-            </div>
-          ) : (
-            <Button type="button" onClick={() => showDatePicker(1)} disabled={isLoading}>
-              {d1 ? `Ваша дата: ${d1}` : 'Выбрать вашу дату'}
-            </Button>
-          )}
-          {d1.length > 0 && !isLoading && (
-            <Button type="button" onClick={() => handleClear(1)} /* ⭐️ УБРАН 'variant' */ style={{ marginLeft: '8px' }}>
-              Очистить
-            </Button>
-          )}
-        </div>
+        <DateField label="Ваша дата:" value={d1} index={1} />
+        <DateField label="Дата партнера:" value={d2} index={2} />
 
-        <div className="date-picker-control">
-          {!tg ? (
-            <div className="browser-date-picker" style={{ display: 'flex', alignItems: 'center' }}>
-              <label htmlFor="birthdate-picker-2" style={{ marginRight: '10px' }}>Дата партнера:</label>
-              <input 
-                type="date"
-                id="birthdate-picker-2"
-                value={formatToInput(d2)}
-                onChange={(e) => handleBrowserDateChange(e, 2)}
-                disabled={isLoading}
-              />
-            </div>
-          ) : (
-            <Button type="button" onClick={() => showDatePicker(2)} disabled={isLoading}>
-              {d2 ? `Дата партнера: ${d2}` : 'Выбрать дату партнера'}
-            </Button>
-          )}
-          {d2.length > 0 && !isLoading && (
-            <Button type="button" onClick={() => handleClear(2)} /* ⭐️ УБРАН 'variant' */ style={{ marginLeft: '8px' }}>
-              Очистить
-            </Button>
-          )}
-        </div>
-
-        <Button 
-          type="submit" 
-          disabled={isLoading || !d1 || !d2}
-          style={{marginTop: '1.5rem'}}
-        >
+        <Button type="submit" disabled={!d1 || !d2 || isLoading} style={{ marginTop: '15px', width: '100%' }}>
           {isLoading ? 'Анализ...' : 'Рассчитать совместимость'}
         </Button>
       </form>
 
-      {err && <p className="error">{err}</p>}
+      {err && <p className="error" style={{ marginTop: '10px' }}>{err}</p>}
 
       {res && (
-        <div className="card">
-          
-          {res.matrixData?.energies && res.matrixData.energies.length > 0 && (
-            <div className="matrix-key-number" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{fontSize: '1.1rem'}}>Ключевые энергии:</span>
-              
-              {res.matrixData.energies.map((energy, index) => (
-                <Button
-                  key={index}
-                  type="button"
-                  onClick={() => handleEnergyClick(energy)}
-                  // ⭐️ УБРАН 'variant'
-                  style={{ padding: '10px 15px', fontSize: '1.2rem', fontWeight: 'bold' }}
-                >
-                  {energy}
-                </Button>
-              ))}
-            </div>
+        <div className="card" style={{ marginTop: '20px' }}>
+           {/* Кликабельные энергии */}
+           {res.matrixData?.energies && (
+             <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+               <span>Энергии:</span>
+               {res.matrixData.energies.map((n, i) => (
+                 <div key={i} 
+                      onClick={() => handleEnergyClick(n)}
+                      style={{ 
+                        width: '36px', height: '36px', 
+                        background: '#444', color: '#fff', 
+                        borderRadius: '50%', display: 'flex', 
+                        alignItems: 'center', justifyContent: 'center',
+                        fontWeight: 'bold', cursor: 'pointer',
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                      }}>
+                   {n}
+                 </div>
+               ))}
+             </div>
           )}
 
-          {res.analysis && (
-            <ReactMarkdown>{res.analysis}</ReactMarkdown>
-          )}
-          
+          <ReactMarkdown>{res.analysis}</ReactMarkdown>
           {res.brief && <ProCTA reason={res.briefReason} />}
         </div>
       )}

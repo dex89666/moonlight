@@ -1,27 +1,17 @@
-
 import { useState, useEffect } from 'react';
 import { Button, Section } from '../components/UI';
 import { api, ApiAnalysisResponse } from '../api/client';
 import { fetchApi } from '../lib/fetchApi';
 import ProCTA from '../components/ProCTA';
-import { initTelegram } from '../lib/telegram';
 
-const LOCAL_STORAGE_KEY_BASE = 'savedBirthDate';
-
-// ... (Тут функции formatDate, formatFromInput, formatToInput - они не меняются) ...
+// Вспомогательные функции для работы с датами
 function formatDate(date: Date): string {
   const d = date.getDate().toString().padStart(2, '0');
   const m = (date.getMonth() + 1).toString().padStart(2, '0');
   const y = date.getFullYear();
   return `${d}.${m}.${y}`;
 }
-function formatFromInput(dateStr: string): string {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return '';
-  const [y, m, d] = parts;
-  return `${d}.${m}.${y}`;
-}
+
 function formatToInput(dateStr: string): string {
   if (!dateStr) return '';
   const parts = dateStr.split('.');
@@ -30,77 +20,72 @@ function formatToInput(dateStr: string): string {
   return `${y}-${m}-${d}`;
 }
 
+function formatFromInput(dateStr: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return '';
+  const [y, m, d] = parts;
+  return `${d}.${m}.${y}`;
+}
+
 export default function MatrixLight() {
   const [d, setD] = useState('');
-  const [apiResponse, setApiResponse] = useState<null | ApiAnalysisResponse>(null);
+  const [apiResponse, setApiResponse] = useState<ApiAnalysisResponse | null>(null);
   const [err, setErr] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  const [storageKey, setStorageKey] = useState<string | null>(null);
-  const [tg, setTg] = useState<any | null>(() => {
-    if (typeof window !== 'undefined' && window.Telegram) {
-      return window.Telegram.WebApp;
-    }
-    return null;
-  });
+  // Состояние для проверки: мы в Telegram или в браузере?
+  const [isTg, setIsTg] = useState(false);
 
-  // ... (Эффекты 1 и 2, showDatePicker, handleBrowserDateChange не меняются) ...
   useEffect(() => {
-    const id = initTelegram() || 'guest';
-    setStorageKey(`${LOCAL_STORAGE_KEY_BASE}_${id}`);
-    if (!tg && typeof window !== 'undefined' && window.Telegram) {
-      setTg(window.Telegram.WebApp);
+    // Проверяем наличие объекта Telegram при загрузке
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg && tg.initData) {
+      setIsTg(true);
+      tg.ready();
+      tg.expand();
     }
   }, []);
-  useEffect(() => {
-    if (storageKey) {
-      const savedDate = localStorage.getItem(storageKey);
-      if (savedDate) {
-        setD(savedDate);
-      }
-    }
-  }, [storageKey]);
+
   const showDatePicker = () => {
+    const tg = (window as any).Telegram?.WebApp;
     if (!tg) return;
-    tg.showDatePicker((selectedDate: Date) => {
+
+    // ⭐️ ИСПРАВЛЕНИЕ: Передаем объект с настройками первым аргументом!
+    tg.showDatePicker({
+      title_text: "Дата рождения",
+      min_date: new Date('1900-01-01'),
+      max_date: new Date()
+    }, (selectedDate: any) => {
+      // Callback функция (второй аргумент)
       if (selectedDate) {
-        const formattedDate = formatDate(selectedDate);
-        setD(formattedDate);
-        if (storageKey) {
-          localStorage.setItem(storageKey, formattedDate);
-        }
+        // Telegram возвращает дату, создаем из неё объект Date и форматируем
+        setD(formatDate(new Date(selectedDate)));
       }
     });
   };
-  const handleBrowserDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputDate = e.target.value;
-    const formattedDate = formatFromInput(inputDate);
-    setD(formattedDate);
-    if (storageKey) {
-      localStorage.setItem(storageKey, formattedDate);
-    }
-  };
 
   const handleKeyNumberClick = (keyNumber: number) => {
-    tg?.HapticFeedback.notificationOccurred('success');
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) tg.HapticFeedback.notificationOccurred('success');
     alert(`Вы нажали на ${keyNumber}. \n\nЗдесь будет подробное PRO-описание этой энергии!`);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErr('');
-    setApiResponse(null); 
-
-    if (storageKey && d) {
-      localStorage.setItem(storageKey, d);
-    }
+    setApiResponse(null);
 
     try {
-      const currentUserId = initTelegram() || 'guest';
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg) tg.HapticFeedback.impactOccurred('medium');
+
+      const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'guest';
+      
       const response = await fetchApi<ApiAnalysisResponse>('/api/matrix', {
         birthDate: d,
-        userId: currentUserId,
+        userId: userId,
       });
       setApiResponse(response);
     } catch (e: any) {
@@ -111,52 +96,52 @@ export default function MatrixLight() {
   };
 
   const handleClear = () => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) tg.HapticFeedback.impactOccurred('light');
+    
     setD('');
     setApiResponse(null);
     setErr('');
-    if (storageKey) {
-      localStorage.removeItem(storageKey);
-    }
   };
 
   return (
     <Section>
       <h2>Психологический портрет по дате</h2>
       <form onSubmit={handleSubmit}>
-        <div className="date-picker-control">
-          {!tg ? (
-            <div className="browser-date-picker" style={{ display: 'flex', alignItems: 'center' }}>
-              <label htmlFor="birthdate-picker" style={{ marginRight: '10px' }}>Дата рождения:</label>
-              <input 
-                type="date"
-                id="birthdate-picker"
-                value={formatToInput(d)}
-                onChange={handleBrowserDateChange}
-                style={{ padding: '8px' }}
-                disabled={isLoading}
-              />
-            </div>
-          ) : (
+        <div className="date-picker-control" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          
+          {/* Если Telegram - показываем кнопку, иначе - обычный инпут */}
+          {isTg ? (
             <Button
               type="button"
               onClick={showDatePicker}
               disabled={isLoading}
-              // ⭐️ УБРАН 'variant'
+              style={{ flex: 1 }}
             >
-              {d ? `Дата: ${d}` : 'Выбрать дату рождения'}
+              {d ? `Дата: ${d}` : 'Выбрать дату рождения 📅'}
             </Button>
+          ) : (
+            <input 
+              type="date" 
+              className="input"
+              value={formatToInput(d)}
+              onChange={(e) => setD(formatFromInput(e.target.value))}
+              style={{ flex: 1, padding: '12px' }}
+              disabled={isLoading}
+            />
           )}
+
           {d.length > 0 && !isLoading && (
             <Button
               type="button"
               onClick={handleClear}
-              // ⭐️ УБРАН 'variant'
-              style={{ marginLeft: '8px' }}
+              style={{ padding: '12px' }}
             >
-              Очистить
+              ✕
             </Button>
           )}
         </div>
+
         <div className="row" style={{ marginTop: '1rem' }}>
           <Button type="submit" disabled={isLoading || !d}>
             {isLoading ? 'Расчёт...' : 'Начать анализ'}
@@ -167,7 +152,7 @@ export default function MatrixLight() {
       {err && <p className="error" style={{ color: 'red' }}>{err}</p>}
 
       {apiResponse && (
-        <div className="card">
+        <div className="card" style={{marginTop: '20px'}}>
           
           {apiResponse.matrixData?.keyNumber && (
             <div className="matrix-key-number" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -175,24 +160,19 @@ export default function MatrixLight() {
               <Button
                 type="button"
                 onClick={() => handleKeyNumberClick(apiResponse.matrixData!.keyNumber!)}
-                // ⭐️ УБРАН 'variant'
                 style={{ padding: '10px 15px', fontSize: '1.2rem', fontWeight: 'bold' }}
               >
                 {apiResponse.matrixData.keyNumber}
               </Button>
             </div>
           )}
-
+          
+          {/* Текстовый анализ */}
           {apiResponse.analysis && (
-            <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{apiResponse.analysis}</pre>
+             <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{apiResponse.analysis}</pre>
           )}
 
-          {apiResponse.source === 'stub' && (
-            <p style={{ color: '#999', marginTop: '0.5rem' }}>
-              Это локальный тестовый ответ (stub). Настройте OPENAI_API_KEY для
-              реальных ответов.
-            </p>
-          )}
+          {/* PRO CTA */}
           {apiResponse.brief && (
             <ProCTA reason={apiResponse.briefReason} />
           )}
