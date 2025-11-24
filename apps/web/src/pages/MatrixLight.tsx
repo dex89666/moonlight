@@ -96,8 +96,8 @@ export default function MatrixLight() {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         
         {isTg && hasTgPicker ? (
-          <Button type="button" onClick={showDatePicker} style={{ border: '2px solid yellow' }}>
-            {d || '🔍 ТЕСТ КАЛЕНДАРЯ'}
+          <Button type="button" onClick={showDatePicker} variant="primary" style={{ background: 'linear-gradient(90deg,#b77df2,#74e2d9)', color: '#111', padding: '10px 14px' }}>
+            {d || 'Выбрать дату'}
           </Button>
         ) : (
           <input id="matrix-native-date" type="date" className="input" value={formatToInput(d)} onChange={(e) => setD(formatFromInput(e.target.value))} />

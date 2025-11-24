@@ -19,11 +19,12 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
     return res.status(400).send('bad date');
   }
 
+  let isPro = false;
+  let matrixData: any = null;
+
   try {
     const u = getUser(userId);
-
     // Проверка подписки через KV
-    let isPro = false;
     try {
       const subExpiryIso = await kv.get(userId);
       if (typeof subExpiryIso === 'string' && subExpiryIso) {
@@ -36,7 +37,7 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
     const p = pathNumber(birthDate);
     const s = summaryForPath(p);
 
-    const matrixData = {
+  matrixData = {
       keyNumber: p,
       summary: s.summary,
       traits: s.traits
@@ -55,10 +56,10 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
 
     const prompt = isPro ? PRO_PROMPT : FREE_PROMPT;
 
-    if (!process.env.OPENAI_API_KEY) {
-       const stub = isPro ? `Локальный тест PRO: ${birthDate}` : FREE_PROMPT;
-       return res.json({ analysis: stub, isPro, brief: !isPro, matrixData });
-    }
+   if (!process.env.OPENAI_API_KEY) {
+     const stub = isPro ? `Локальный тест PRO: ${birthDate}` : FREE_PROMPT;
+     return res.json({ analysis: stub, isPro, brief: !isPro, matrixData, source: 'stub' });
+   }
     
     console.log('[Matrix] 🤖 Запрос в OpenAI...');
     const openai = new OpenAI({
@@ -80,6 +81,25 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
 
   } catch (error: any) {
     console.error('[Matrix] ❌ Ошибка:', error);
+    // extra debugging fields from OpenAI SDK
+    try {
+      console.error('[Matrix] error.error =', error?.error);
+      console.error('[Matrix] error.code =', error?.code);
+      console.error('[Matrix] error.status =', error?.status);
+      console.error('[Matrix] error.requestID =', error?.requestID);
+      console.error('[Matrix] stack =', error?.stack);
+    } catch (logErr) {
+      console.error('[Matrix] failed to log error details', logErr);
+    }
+
+    // Если провайдер вернул 401 (AuthenticationError), вернём аккуратный локальный stub
+    const status = error?.status || error?.code || (error?.error && error.error.code);
+    if (status === 401) {
+      const fallback = matrixData ? `Короткий портрет: ${matrixData.summary}` : 'Короткий портрет (нет данных)';
+      const stub = isPro ? `Локальный PRO-ответ по дате ${birthDate}. Проверьте OPENAI_API_KEY.` : fallback;
+      return res.json({ analysis: stub, isPro, brief: !isPro, matrixData, source: 'stub' });
+    }
+
     return res.status(500).send(error.message || 'Internal Error');
   }
 }
