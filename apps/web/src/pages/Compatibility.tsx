@@ -12,50 +12,25 @@ function formatDate(date: Date): string {
   return `${d}.${m}.${y}`;
 }
 
-function formatToInput(dateStr: string): string {
-  if (!dateStr) return '';
-  const parts = dateStr.split('.');
-  if (parts.length !== 3) return '';
-  const [d, m, y] = parts;
-  return `${y}-${m}-${d}`;
-}
-
-function formatFromInput(dateStr: string): string {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return '';
-  const [y, m, d] = parts;
-  return `${d}.${m}.${y}`;
-}
-
 export default function Compatibility() {
   const [d1, setD1] = useState('');
   const [d2, setD2] = useState('');
   const [res, setRes] = useState<ApiAnalysisResponse | null>(null);
   const [err, setErr] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
-  // ⭐️ Умная проверка поддержки календаря
-  const [hasNativePicker, setHasNativePicker] = useState(false);
+  const [isTg, setIsTg] = useState(false);
 
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
-    // Проверяем, есть ли функция календаря
-    if (tg && tg.initData && typeof tg.showDatePicker === 'function') {
-      setHasNativePicker(true);
+    if (tg) {
+      setIsTg(true);
       tg.ready();
-      tg.expand();
-    } else if (tg) {
-      tg.ready();
-      tg.expand();
     }
   }, []);
 
   const showDatePicker = (index: 1 | 2) => {
     const tg = (window as any).Telegram?.WebApp;
-    if (!tg || !tg.showDatePicker) return;
-
-    try { tg.HapticFeedback.impactOccurred('light'); } catch (e) {}
+    if (!tg) return;
 
     tg.showDatePicker({
       title_text: index === 1 ? "Ваша дата" : "Дата партнера",
@@ -70,23 +45,14 @@ export default function Compatibility() {
     });
   };
 
-  const handleEnergyClick = (n: number) => {
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-    alert(`Энергия совместимости: ${n}`);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    if (!d1 || !d2) return;
     setIsLoading(true);
     setErr('');
     setRes(null);
 
     try {
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-      
-      const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'guest';
+      const userId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || 'guest';
       
       const data = await fetchApi<ApiAnalysisResponse>('/api/compat', {
         birthDate1: d1,
@@ -101,63 +67,45 @@ export default function Compatibility() {
     }
   };
 
-  const DateField = ({ label, value, index }: { label: string, value: string, index: 1 | 2 }) => (
-    <div style={{ marginBottom: '10px' }}>
-      <label style={{ display: 'block', marginBottom: '5px', color: '#888', fontSize: '0.9rem' }}>{label}</label>
-      {hasNativePicker ? (
-        <Button type="button" onClick={() => showDatePicker(index)} style={{ width: '100%', justifyContent: 'flex-start' }}>
-          {value || 'Выбрать дату 📅'}
-        </Button>
-      ) : (
-        <input 
-          type="date" 
-          className="input" 
-          value={formatToInput(value)} 
-          onChange={(e) => {
-             const val = formatFromInput(e.target.value);
-             if (index === 1) setD1(val); else setD2(val);
-          }}
-          style={{ width: '100%', padding: '12px' }} 
-        />
-      )}
-    </div>
-  );
-
   return (
     <Section>
       <h2>Совместимость</h2>
-      <form onSubmit={handleSubmit}>
-        <DateField label="Ваша дата:" value={d1} index={1} />
-        <DateField label="Дата партнера:" value={d2} index={2} />
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        {/* Дата 1 */}
+        <div>
+          <div style={{color: '#888', marginBottom: '5px', fontSize: '14px'}}>Ваша дата:</div>
+          {isTg ? (
+            <Button type="button" onClick={() => showDatePicker(1)} style={{background: '#333'}}>
+              {d1 || 'Выбрать дату 📅'}
+            </Button>
+          ) : (
+             <input type="date" className="input" onChange={(e) => e.target.valueAsDate && setD1(formatDate(e.target.valueAsDate))} />
+          )}
+        </div>
 
-        <Button type="submit" disabled={!d1 || !d2 || isLoading} style={{ marginTop: '15px', width: '100%' }}>
-          {isLoading ? 'Анализ...' : 'Рассчитать совместимость'}
+        {/* Дата 2 */}
+        <div>
+          <div style={{color: '#888', marginBottom: '5px', fontSize: '14px'}}>Дата партнера:</div>
+          {isTg ? (
+            <Button type="button" onClick={() => showDatePicker(2)} style={{background: '#333'}}>
+              {d2 || 'Выбрать дату 📅'}
+            </Button>
+          ) : (
+             <input type="date" className="input" onChange={(e) => e.target.valueAsDate && setD2(formatDate(e.target.valueAsDate))} />
+          )}
+        </div>
+
+        {/* Кнопка Расчета */}
+        <Button onClick={handleSubmit} disabled={!d1 || !d2 || isLoading} variant="primary">
+          {isLoading ? 'Считаем...' : 'Рассчитать'}
         </Button>
-      </form>
+      </div>
 
       {err && <p className="error" style={{ marginTop: '10px' }}>{err}</p>}
 
       {res && (
         <div className="card" style={{ marginTop: '20px' }}>
-           {res.matrixData?.energies && (
-             <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-               <span>Энергии:</span>
-               {res.matrixData.energies.map((n, i) => (
-                 <div key={i} 
-                      onClick={() => handleEnergyClick(n)}
-                      style={{ 
-                        width: '36px', height: '36px', 
-                        background: '#444', color: '#fff', 
-                        borderRadius: '50%', display: 'flex', 
-                        alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 'bold', cursor: 'pointer',
-                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                      }}>
-                   {n}
-                 </div>
-               ))}
-             </div>
-          )}
           <ReactMarkdown>{res.analysis}</ReactMarkdown>
           {res.brief && <ProCTA reason={res.briefReason} />}
         </div>
