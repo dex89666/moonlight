@@ -5,6 +5,7 @@ import { handleMatrix } from '../core/api-logic/matrix.js';
 import { handleCompat } from '../core/api-logic/compat.js';
 import { handleTelegramWebhook } from '../core/api-logic/telegram/webhook.js';
 import { handlePro } from '../core/api-logic/pro.js';
+import { handlePayments } from '../core/api-logic/payments.js';
 import { handleTarot } from '../core/api-logic/tarot.js';
 import { handleZodiac } from '../core/api-logic/zodiac.js';
 import { handleUser } from '../core/api-logic/user.js';
@@ -40,6 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (path.includes('/pro')) return await handlePro(req, res);
     if (path.includes('/tarot')) return await handleTarot(req, res);
+  if (path.includes('/payments')) return await handlePayments(req, res);
     if (path.includes('/zodiac')) return await handleZodiac(req, res);
     if (path.includes('/user')) return handleUser(req, res);
     if (path.includes('/chat')) return await handleChat(req, res);
