@@ -28,6 +28,13 @@ export default function Compatibility() {
       try { setHasTgPicker(typeof tg.showDatePicker === 'function'); } catch {}
       try { tg.ready(); } catch {}
     }
+    // restore saved dates
+    try {
+      const s1 = localStorage.getItem('birthDate1')
+      const s2 = localStorage.getItem('birthDate2')
+      if (s1) setD1(s1)
+      if (s2) setD2(s2)
+    } catch (e) {}
   }, []);
 
   const showDatePicker = (index: 1 | 2) => {
@@ -112,7 +119,7 @@ export default function Compatibility() {
               {d1 || 'Выбрать дату 📅'}
             </Button>
           ) : (
-             <input id="compat-native-1" type="date" className="input" onChange={(e) => e.target.value && setD1(formatDate(new Date(e.target.value)))} />
+             <input id="compat-native-1" type="date" className="input" onChange={(e) => { if (e.target.value) { const val = formatDate(new Date(e.target.value)); setD1(val); try { localStorage.setItem('birthDate1', val) } catch (e) {} } }} />
           )}
         </div>
 
@@ -124,7 +131,7 @@ export default function Compatibility() {
               {d2 || 'Выбрать дату 📅'}
             </Button>
           ) : (
-             <input id="compat-native-2" type="date" className="input" onChange={(e) => e.target.value && setD2(formatDate(new Date(e.target.value)))} />
+             <input id="compat-native-2" type="date" className="input" onChange={(e) => { if (e.target.value) { const val = formatDate(new Date(e.target.value)); setD2(val); try { localStorage.setItem('birthDate2', val) } catch (e) {} } }} />
           )}
         </div>
 
@@ -142,6 +149,13 @@ export default function Compatibility() {
           {res.brief && <ProCTA reason={res.briefReason} />}
         </div>
       )}
+      <div style={{ marginTop: '12px' }}>
+        <Button type="button" variant="outline" onClick={async () => {
+          try { localStorage.removeItem('birthDate1'); localStorage.removeItem('birthDate2') } catch (e) {}
+          const userId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString();
+          if (userId) await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, action: 'clearDate' }) })
+        }}>Очистить даты</Button>
+      </div>
     </Section>
   );
 }

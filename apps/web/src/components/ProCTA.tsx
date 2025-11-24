@@ -41,12 +41,11 @@ export default function ProCTA({ reason }: { reason?: string }) {
           
           try {
             // ⭐️ ИСПРАВЛЕНО: Отправляем userId в теле запроса
+            const birthDate = (() => { try { return localStorage.getItem('birthDate') } catch (e) { return null } })()
             const res = await fetch('/api/payments', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: userId, // ⬅️ Вот это мы исправили
-              }),
+              body: JSON.stringify({ userId: userId, birthDate }),
             });
 
             if (!res.ok) {

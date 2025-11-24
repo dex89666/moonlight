@@ -10,28 +10,54 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
   
-  const body = req.body || {};
-  const { birthDate, userId = 'guest' } = body;
-  
-  console.log(`[Matrix] Data: date=${birthDate}, user=${userId}`);
+  const body = req.body || {}
+  let { birthDate, userId = 'guest' } = body
 
-  if (!birthDate || !isValidDateStr(birthDate)) {
-    return res.status(400).send('bad date');
+  console.log(`[Matrix] Data: date=${birthDate}, user=${userId}`)
+
+  // If birthDate not provided, try to read from subscription storage
+  try {
+    const raw = await kv.get(`sub:${userId}`)
+    if (raw) {
+      try {
+        const obj = typeof raw === 'string' ? JSON.parse(raw) : raw
+        if (!birthDate && obj.birthDate) birthDate = obj.birthDate
+      } catch (e) {
+        // ignore parse
+      }
+    }
+  } catch (e) {
+    console.warn('[Matrix] KV read for birthDate failed', e)
   }
 
-  let isPro = false;
-  let matrixData: any = null;
+  if (!birthDate || !isValidDateStr(birthDate)) {
+    return res.status(400).send('bad date')
+  }
+
+  let isPro = false
+  let matrixData: any = null
 
   try {
     const u = getUser(userId);
     // Проверка подписки через KV
     try {
-      const subExpiryIso = await kv.get(userId);
-      if (typeof subExpiryIso === 'string' && subExpiryIso) {
-        isPro = new Date(subExpiryIso) > new Date();
+      const raw = await kv.get(`sub:${userId}`)
+      if (raw) {
+        try {
+          const obj = typeof raw === 'string' ? JSON.parse(raw) : raw
+          if (obj && obj.expiry) {
+            isPro = new Date(obj.expiry) > new Date()
+          }
+        } catch (e) {
+          // legacy single-string expiry support
+          if (typeof raw === 'string') {
+            const maybeIso = raw
+            isPro = new Date(maybeIso) > new Date()
+          }
+        }
       }
     } catch (kvErr) {
-      console.error('[Matrix] KV error:', kvErr);
+      console.error('[Matrix] KV error:', kvErr)
     }
 
     const p = pathNumber(birthDate);
@@ -61,7 +87,8 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
      return res.json({ analysis: stub, isPro, brief: !isPro, matrixData, source: 'stub' });
    }
     
-    console.log('[Matrix] 🤖 Запрос в OpenAI...');
+  console.log('[Matrix] 🤖 Запрос в OpenAI...');
+  try { console.log('[Matrix] OPENAI_KEY_PRESENT =', Boolean(process.env.OPENAI_API_KEY)); } catch(e){}
     const openai = new OpenAI({
       baseURL: "https://openrouter.ai/api/v1",
       apiKey: process.env.OPENAI_API_KEY,

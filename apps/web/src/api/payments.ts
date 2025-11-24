@@ -1,41 +1,49 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-// ⭐️ НОВОЕ: Импортируем твою KV-базу, как в других файлах
-import { kv } from '../../core/db';
-// (getUser нам здесь не нужен, только kv)
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { kv } from '../../core/db'
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse,
-) {
-  if (req.method !== 'POST') {
-    return res.status(405).send('Method Not Allowed');
-  }
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed')
 
-  // 1. Получаем userId из тела (как мы и исправили в ProCTA)
-  const { userId } = req.body as { userId?: string };
+  const { userId, birthDate, action } = req.body as { userId?: string; birthDate?: string; action?: string }
 
   if (!userId || userId === 'guest') {
-    return res.status(400).json({ error: 'Invalid user ID' });
+    return res.status(400).json({ error: 'Invalid user ID' })
   }
 
+  const key = `sub:${userId}`
+
   try {
-    // 2. Рассчитываем дату окончания подписки (+1 месяц)
-    const expiryDate = new Date();
-    expiryDate.setMonth(expiryDate.getMonth() + 1);
-    const expiryDateISO = expiryDate.toISOString();
+    if (action === 'clearDate') {
+      // remove birthDate from stored subscription if present
+      const raw = await kv.get(key)
+      if (raw) {
+        try {
+          const obj = typeof raw === 'string' ? JSON.parse(raw) : raw
+          delete obj.birthDate
+          await kv.set(key, JSON.stringify(obj))
+        } catch (e) {
+          // if parsing failed, just delete the whole key
+          await kv.del(key)
+        }
+      }
+      return res.status(200).json({ success: true })
+    }
 
-    // 3. Записываем в KV-базу
-    // Это та же самая база, которую читает api/matrix.ts
-    // Ключ = userId, Значение = '2025-12-16T17:30:00.000Z'
-    await kv.set(userId, expiryDateISO);
+    // activate subscription: set expiry + optional birthDate
+    const expiryDate = new Date()
+    expiryDate.setMonth(expiryDate.getMonth() + 1)
+    const expiryDateISO = expiryDate.toISOString()
 
-    console.log(`[БЭКЕНД] PRO-доступ активирован для ${userId} до ${expiryDateISO}`);
+    const payload: any = { expiry: expiryDateISO }
+    if (birthDate) payload.birthDate = birthDate
 
-    // 4. Отправляем успешный ответ
-    return res.status(200).json({ success: true, expiry: expiryDateISO });
+    await kv.set(key, JSON.stringify(payload))
 
+    console.log(`[БЭКЕНД] PRO-доступ активирован для ${userId} до ${expiryDateISO} (birthDate=${birthDate || 'none'})`)
+
+    return res.status(200).json({ success: true, expiry: expiryDateISO })
   } catch (error: any) {
-    console.error(`[БЭКЕНД] Ошибка при активации PRO для ${userId}:`, error);
-    return res.status(500).json({ error: 'Server error while activating subscription' });
+    console.error(`[БЭКЕНД] Ошибка при активации PRO для ${userId}:`, error)
+    return res.status(500).json({ error: 'Server error while activating subscription' })
   }
 }

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Button, Section } from '../components/UI';
-import { fetchApi } from '../lib/fetchApi';
-import { ApiAnalysisResponse } from '../api/client';
-import ProCTA from '../components/ProCTA';
+import { Button, Section } from '../components/UI'
+import { fetchApi } from '../lib/fetchApi'
+import { ApiAnalysisResponse } from '../api/client'
+import ProCTA from '../components/ProCTA'
+import ReactMarkdown from 'react-markdown'
 
 // Хелперы
 function formatDate(date: Date): string {
@@ -44,6 +45,12 @@ export default function MatrixLight() {
       try { tg.ready(); } catch {}
       try { tg.expand(); } catch {}
     }
+
+    // restore last saved date if any
+    try {
+      const saved = localStorage.getItem('birthDate')
+      if (saved) setD(saved)
+    } catch (e) {}
   }, []);
 
   const showDatePicker = () => {
@@ -104,7 +111,10 @@ export default function MatrixLight() {
       const tg = (window as any).Telegram?.WebApp;
       const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'guest';
 
-      const data = await fetchApi<ApiAnalysisResponse>('/api/matrix', { birthDate: d, userId });
+  // persist chosen date so it is associated with subscription later
+  try { localStorage.setItem('birthDate', d) } catch (e) {}
+
+  const data = await fetchApi<ApiAnalysisResponse>('/api/matrix', { birthDate: d, userId });
       setRes(data as ApiAnalysisResponse);
     } catch (e: any) {
       console.error('API error', e);
@@ -137,9 +147,24 @@ export default function MatrixLight() {
       {res && (
         <div className="card">
           <h3>Успех!</h3>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>{JSON.stringify(res, null, 2)}</pre>
+          <div style={{ marginTop: '10px' }}>
+            <ReactMarkdown>{res.analysis}</ReactMarkdown>
+          </div>
+          {res.brief && <ProCTA reason={res.briefReason} />}
         </div>
       )}
+
+      <div style={{ marginTop: '10px' }}>
+  <Button type="button" variant="outline" onClick={async () => {
+          // clear saved date both locally and on server if user is known
+          try { localStorage.removeItem('birthDate') } catch (e) {}
+          const tg = (window as any).Telegram?.WebApp;
+          const userId = tg?.initDataUnsafe?.user?.id?.toString();
+          if (userId) {
+            await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, action: 'clearDate' }) })
+          }
+        }}>Очистить сохранённую дату</Button>
+      </div>
     </Section>
   );
 }
