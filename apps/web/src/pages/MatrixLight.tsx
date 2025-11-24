@@ -50,9 +50,17 @@ export default function MatrixLight() {
     const tg = (window as any).Telegram?.WebApp;
     if (tg && typeof tg.showDatePicker === 'function') {
       try {
-        tg.showDatePicker({ title_text: 'Выберите дату', max_date: new Date() }, (selectedDate: any) => {
-          if (selectedDate) setD(formatDate(new Date(selectedDate)));
+        // support both callback and promise-style implementations
+        const maybePromise = tg.showDatePicker({ title_text: 'Выберите дату', max_date: new Date() }, (selectedDate: any) => {
+          // callback-style
+          if (selectedDate) setD(formatDate(normalizePickedDate(selectedDate)));
         });
+
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          maybePromise.then((selectedDate: any) => {
+            if (selectedDate) setD(formatDate(normalizePickedDate(selectedDate)));
+          }).catch((err: any) => console.warn('Date picker promise rejected', err));
+        }
       } catch (e: any) {
         console.error('Calendar open failed', e);
       }
@@ -62,6 +70,22 @@ export default function MatrixLight() {
       if (el) el.showPicker ? el.showPicker() : el.focus();
     }
   };
+
+  // Normalizes various picker return shapes into a Date instance
+  function normalizePickedDate(selected: any): Date {
+    if (!selected) return new Date();
+    // some implementations return timestamp number
+    if (typeof selected === 'number') return new Date(selected);
+    // some return ISO string
+    if (typeof selected === 'string') return new Date(selected);
+    // callback-style may send an object with 'date' or 'selected_date' fields
+    if (selected.date) return new Date(selected.date);
+    if (selected.value) return new Date(selected.value);
+    // if it's already a Date
+    if (selected instanceof Date) return selected;
+    // fallback
+    return new Date(selected);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
