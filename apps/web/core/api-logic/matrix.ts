@@ -99,12 +99,15 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
     // Auto-detect provider: if key looks like OpenAI secret (sk-...) use official OpenAI API,
     // otherwise use OpenRouter baseURL. This helps when Vercel env contains an OpenAI key.
     const rawKey = process.env.OPENAI_API_KEY || ''
-    const looksLikeOpenAIKey = rawKey.startsWith('sk-')
+    // OpenRouter keys often start with 'sk-or-' (or similar). Official OpenAI keys start with 'sk-'
+    // but OpenRouter may use a key that also begins with 'sk-or-'. Detect that case explicitly.
+    const looksLikeOpenRouterKey = rawKey.startsWith('sk-or-') || rawKey.includes('openrouter')
+    const looksLikeOpenAIKey = !looksLikeOpenRouterKey && rawKey.startsWith('sk-')
     const openaiConfig: any = { apiKey: rawKey }
-    if (!looksLikeOpenAIKey) {
+    if (looksLikeOpenRouterKey) {
       openaiConfig.baseURL = 'https://openrouter.ai/api/v1'
     }
-    console.log('[Matrix] Using provider:', looksLikeOpenAIKey ? 'OpenAI (api.openai.com)' : 'OpenRouter (openrouter.ai)')
+    console.log('[Matrix] Using provider:', looksLikeOpenAIKey ? 'OpenAI (api.openai.com)' : looksLikeOpenRouterKey ? 'OpenRouter (openrouter.ai)' : 'Unknown (default to OpenRouter)')
     const openai = new OpenAI(openaiConfig)
 
     const completion = await openai.chat.completions.create({
