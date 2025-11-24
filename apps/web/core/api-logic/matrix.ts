@@ -98,16 +98,33 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
 
     // Auto-detect provider: if key looks like OpenAI secret (sk-...) use official OpenAI API,
     // otherwise use OpenRouter baseURL. This helps when Vercel env contains an OpenAI key.
+    // Provider override via env: OPENAI_PROVIDER = 'openai' or 'openrouter'
+    const providerOverride = (process.env.OPENAI_PROVIDER || '').toLowerCase()
     const rawKey = process.env.OPENAI_API_KEY || ''
-    // OpenRouter keys often start with 'sk-or-' (or similar). Official OpenAI keys start with 'sk-'
-    // but OpenRouter may use a key that also begins with 'sk-or-'. Detect that case explicitly.
     const looksLikeOpenRouterKey = rawKey.startsWith('sk-or-') || rawKey.includes('openrouter')
     const looksLikeOpenAIKey = !looksLikeOpenRouterKey && rawKey.startsWith('sk-')
     const openaiConfig: any = { apiKey: rawKey }
-    if (looksLikeOpenRouterKey) {
+
+    let chosenProvider = ''
+    if (providerOverride === 'openai') {
+      chosenProvider = 'OpenAI (forced by OPENAI_PROVIDER)'
+    } else if (providerOverride === 'openrouter') {
+      chosenProvider = 'OpenRouter (forced by OPENAI_PROVIDER)'
       openaiConfig.baseURL = 'https://openrouter.ai/api/v1'
+    } else {
+      // fallback to auto-detection
+      if (looksLikeOpenRouterKey) {
+        chosenProvider = 'OpenRouter (auto-detected)'
+        openaiConfig.baseURL = 'https://openrouter.ai/api/v1'
+      } else if (looksLikeOpenAIKey) {
+        chosenProvider = 'OpenAI (auto-detected)'
+      } else {
+        chosenProvider = 'OpenRouter (default fallback)'
+        openaiConfig.baseURL = 'https://openrouter.ai/api/v1'
+      }
     }
-    console.log('[Matrix] Using provider:', looksLikeOpenAIKey ? 'OpenAI (api.openai.com)' : looksLikeOpenRouterKey ? 'OpenRouter (openrouter.ai)' : 'Unknown (default to OpenRouter)')
+
+    console.log('[Matrix] Selected provider:', chosenProvider, ' (OPENAI_PROVIDER=', providerOverride || '(none)', ')')
     const openai = new OpenAI(openaiConfig)
 
     const completion = await openai.chat.completions.create({
