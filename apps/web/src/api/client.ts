@@ -2,7 +2,9 @@
 // Если мы разрабатываем (DEV) -> http://localhost:3000
 // Если мы в продакшене (Vercel) -> "" (пустая строка, то есть текущий домен)
 // ⭐️ ЖЕЛЕЗОБЕТОННО: Всегда используем текущий домен
-export const API_BASE_URL = '';
+// In dev (Vite) the frontend runs on :5173 and the local API server runs on :3000.
+// Use explicit localhost:3000 in dev to avoid 404 from vite dev server.
+export const API_BASE_URL = (import.meta as any).env?.DEV ? 'http://localhost:3000' : '';
 
 export type ApiAnalysisResponse = {
   analysis: string

@@ -87,8 +87,15 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
      return res.json({ analysis: stub, isPro, brief: !isPro, matrixData, source: 'stub' });
    }
     
-  console.log('[Matrix] 🤖 Запрос в OpenAI...');
-  try { console.log('[Matrix] OPENAI_KEY_PRESENT =', Boolean(process.env.OPENAI_API_KEY)); } catch(e){}
+  console.log('[Matrix] 🤖 Подготовка запроса в OpenAI...');
+  try {
+    const model = process.env.MODEL || 'mistralai/mistral-7b-instruct:free'
+    const baseURL = 'https://openrouter.ai/api/v1'
+    const rawKey = process.env.OPENAI_API_KEY || ''
+    const masked = rawKey ? `${rawKey.slice(0,4)}...${rawKey.slice(-4)}` : '(none)'
+    console.log('[Matrix] DEBUG: model=', model, ' baseURL=', baseURL, ' OPENAI_KEY_MASK=', masked)
+  } catch(e){}
+
     const openai = new OpenAI({
       baseURL: "https://openrouter.ai/api/v1",
       apiKey: process.env.OPENAI_API_KEY,
