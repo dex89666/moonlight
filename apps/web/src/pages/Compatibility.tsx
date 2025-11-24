@@ -5,13 +5,13 @@ import { fetchApi } from '../lib/fetchApi';
 import ProCTA from '../components/ProCTA';
 import { ApiAnalysisResponse } from '../api/client';
 
-// Вспомогательные функции (те же самые)
 function formatDate(date: Date): string {
   const d = date.getDate().toString().padStart(2, '0');
   const m = (date.getMonth() + 1).toString().padStart(2, '0');
   const y = date.getFullYear();
   return `${d}.${m}.${y}`;
 }
+
 function formatToInput(dateStr: string): string {
   if (!dateStr) return '';
   const parts = dateStr.split('.');
@@ -19,6 +19,7 @@ function formatToInput(dateStr: string): string {
   const [d, m, y] = parts;
   return `${y}-${m}-${d}`;
 }
+
 function formatFromInput(dateStr: string): string {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
@@ -33,12 +34,18 @@ export default function Compatibility() {
   const [res, setRes] = useState<ApiAnalysisResponse | null>(null);
   const [err, setErr] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isTg, setIsTg] = useState(false);
+  
+  // ⭐️ Умная проверка поддержки календаря
+  const [hasNativePicker, setHasNativePicker] = useState(false);
 
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
-    if (tg && tg.initData) {
-      setIsTg(true);
+    // Проверяем, есть ли функция календаря
+    if (tg && tg.initData && typeof tg.showDatePicker === 'function') {
+      setHasNativePicker(true);
+      tg.ready();
+      tg.expand();
+    } else if (tg) {
       tg.ready();
       tg.expand();
     }
@@ -46,13 +53,12 @@ export default function Compatibility() {
 
   const showDatePicker = (index: 1 | 2) => {
     const tg = (window as any).Telegram?.WebApp;
-    if (!tg) return;
+    if (!tg || !tg.showDatePicker) return;
 
-    tg.HapticFeedback.impactOccurred('light');
+    try { tg.HapticFeedback.impactOccurred('light'); } catch (e) {}
 
-    // ⭐️ ИСПРАВЛЕНИЕ: Передаем объект с настройками первым аргументом!
     tg.showDatePicker({
-      title_text: index === 1 ? "Ваша дата рождения" : "Дата рождения партнера",
+      title_text: index === 1 ? "Ваша дата" : "Дата партнера",
       min_date: new Date('1900-01-01'),
       max_date: new Date()
     }, (selectedDate: any) => {
@@ -66,7 +72,7 @@ export default function Compatibility() {
 
   const handleEnergyClick = (n: number) => {
     const tg = (window as any).Telegram?.WebApp;
-    if (tg) tg.HapticFeedback.notificationOccurred('success');
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     alert(`Энергия совместимости: ${n}`);
   };
 
@@ -78,7 +84,7 @@ export default function Compatibility() {
 
     try {
       const tg = (window as any).Telegram?.WebApp;
-      if (tg) tg.HapticFeedback.impactOccurred('medium');
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
       
       const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'guest';
       
@@ -95,12 +101,11 @@ export default function Compatibility() {
     }
   };
 
-  // Компонент для поля ввода даты (чтобы не дублировать код)
   const DateField = ({ label, value, index }: { label: string, value: string, index: 1 | 2 }) => (
     <div style={{ marginBottom: '10px' }}>
       <label style={{ display: 'block', marginBottom: '5px', color: '#888', fontSize: '0.9rem' }}>{label}</label>
-      {isTg ? (
-        <Button type="button" onClick={() => showDatePicker(index)} variant="outline" style={{ width: '100%', justifyContent: 'flex-start' }}>
+      {hasNativePicker ? (
+        <Button type="button" onClick={() => showDatePicker(index)} style={{ width: '100%', justifyContent: 'flex-start' }}>
           {value || 'Выбрать дату 📅'}
         </Button>
       ) : (
@@ -121,7 +126,6 @@ export default function Compatibility() {
   return (
     <Section>
       <h2>Совместимость</h2>
-      
       <form onSubmit={handleSubmit}>
         <DateField label="Ваша дата:" value={d1} index={1} />
         <DateField label="Дата партнера:" value={d2} index={2} />
@@ -135,7 +139,6 @@ export default function Compatibility() {
 
       {res && (
         <div className="card" style={{ marginTop: '20px' }}>
-           {/* Кликабельные энергии */}
            {res.matrixData?.energies && (
              <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', alignItems: 'center' }}>
                <span>Энергии:</span>
@@ -155,7 +158,6 @@ export default function Compatibility() {
                ))}
              </div>
           )}
-
           <ReactMarkdown>{res.analysis}</ReactMarkdown>
           {res.brief && <ProCTA reason={res.briefReason} />}
         </div>

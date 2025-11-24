@@ -29,96 +29,140 @@ function formatFromInput(dateStr: string): string {
 
 export default function MatrixLight() {
   const [d, setD] = useState('');
-  const [res, setRes] = useState<ApiAnalysisResponse | null>(null);
+  const [apiResponse, setApiResponse] = useState<ApiAnalysisResponse | null>(null);
   const [err, setErr] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isTg, setIsTg] = useState(false);
+  
+  // Состояние: поддерживается ли нативный календарь?
+  const [hasNativePicker, setHasNativePicker] = useState(false);
 
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
-    // Проверяем, есть ли initData (это значит, что мы точно в Telegram)
-    if (tg && tg.initData) {
-      setIsTg(true);
+    // ⭐️ ПРОВЕРКА: Мы в TG + Есть initData + ЕСТЬ ФУНКЦИЯ КАЛЕНДАРЯ
+    if (tg && tg.initData && typeof tg.showDatePicker === 'function') {
+      setHasNativePicker(true);
+      tg.ready();
+      tg.expand();
+    } else if (tg) {
+      // Если мы в TG, но календаря нет (старая версия)
       tg.ready();
       tg.expand();
     }
   }, []);
 
   const showDatePicker = () => {
-    // 1. ОТЛАДКА: Проверяем, нажалась ли кнопка
-    alert('Кнопка нажата! Ищем Telegram...');
-
     const tg = (window as any).Telegram?.WebApp;
-    if (!tg) {
-      alert('ОШИБКА: Объект Telegram WebApp не найден!');
-      return;
-    }
+    if (!tg || !tg.showDatePicker) return;
 
-    alert('Telegram найден. Запускаем календарь...');
+    tg.showDatePicker({
+      title_text: "Дата рождения",
+      min_date: new Date('1900-01-01'),
+      max_date: new Date()
+    }, (selectedDate: any) => {
+      if (selectedDate) {
+        setD(formatDate(new Date(selectedDate)));
+      }
+    });
+  };
 
-    // 2. ОТЛАДКА: Вызываем календарь
-    try {
-        tg.showDatePicker({
-          title_text: "Дата рождения"
-        }, (selectedDate: any) => {
-          // 3. ОТЛАДКА: Проверяем, вернул ли календарь дату
-          if (selectedDate) {
-            alert(`Дата выбрана: ${selectedDate}`);
-            setD(formatDate(new Date(selectedDate)));
-          } else {
-            alert('Дата не выбрана (отмена)');
-          }
-        });
-    } catch (e: any) {
-        alert(`КРИТИЧЕСКАЯ ОШИБКА: ${e.message}`);
-    }
+  const handleKeyNumberClick = (keyNumber: number) => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    alert(`Вы нажали на ${keyNumber}. \n\nЗдесь будет подробное PRO-описание этой энергии!`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErr('');
-    setRes(null);
+    setApiResponse(null);
 
     try {
       const tg = (window as any).Telegram?.WebApp;
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
       const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'guest';
-      const data = await fetchApi<ApiAnalysisResponse>('/api/matrix', { birthDate: d, userId });
-      setRes(data);
+      
+      const response = await fetchApi<ApiAnalysisResponse>('/api/matrix', {
+        birthDate: d,
+        userId: userId,
+      });
+      setApiResponse(response);
     } catch (e: any) {
-      setErr(e.message || 'Ошибка');
+      setErr(e?.message || 'Ошибка');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleClear = () => {
+    setD('');
+    setApiResponse(null);
+    setErr('');
+  };
+
   return (
     <Section>
-      <h2>Матрица Судьбы</h2>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        
-        {/* Если мы в Telegram - показываем кнопку Debug, иначе input */}
-        {isTg ? (
-          <Button type="button" onClick={showDatePicker} style={{ border: '2px solid yellow' }}>
-            {d || '📅 НАЖМИ МЕНЯ (DEBUG)'}
-          </Button>
-        ) : (
-          <div style={{display: 'flex', flexDirection: 'column'}}>
-            <span style={{fontSize: '12px', color: '#888'}}>Режим браузера (Telegram не найден):</span>
-            <input type="date" className="input" value={formatToInput(d)} onChange={e => setD(formatFromInput(e.target.value))} />
-          </div>
-        )}
+      <h2>Психологический портрет</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="date-picker-control" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          
+          {/* ⭐️ Если есть нативный календарь - Кнопка. Если нет - обычный Инпут */}
+          {hasNativePicker ? (
+            <Button
+              type="button"
+              onClick={showDatePicker}
+              disabled={isLoading}
+              style={{ flex: 1 }}
+            >
+              {d ? `Дата: ${d}` : 'Выбрать дату 📅'}
+            </Button>
+          ) : (
+            <input 
+              type="date" 
+              className="input"
+              value={formatToInput(d)}
+              onChange={(e) => setD(formatFromInput(e.target.value))}
+              style={{ flex: 1, padding: '12px' }}
+              disabled={isLoading}
+            />
+          )}
 
-        <Button type="submit" disabled={!d || isLoading} variant="primary">
-          {isLoading ? 'Расчет...' : 'Начать анализ'}
-        </Button>
+          {d.length > 0 && !isLoading && (
+            <Button type="button" onClick={handleClear} style={{ padding: '12px' }}>✕</Button>
+          )}
+        </div>
+
+        <div className="row" style={{ marginTop: '1rem' }}>
+          <Button type="submit" disabled={isLoading || !d}>
+            {isLoading ? 'Расчёт...' : 'Начать анализ'}
+          </Button>
+        </div>
       </form>
 
-      {err && <p className="error">{err}</p>}
+      {err && <p className="error" style={{ color: 'red' }}>{err}</p>}
 
-      {res && (
-        <div className="card">
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{res.analysis}</pre>
+      {apiResponse && (
+        <div className="card" style={{marginTop: '20px'}}>
+          {apiResponse.matrixData?.keyNumber && (
+            <div className="matrix-key-number" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{fontSize: '1.1rem'}}>Ключевое число:</span>
+              <Button
+                type="button"
+                onClick={() => handleKeyNumberClick(apiResponse.matrixData!.keyNumber!)}
+                style={{ padding: '10px 15px', fontSize: '1.2rem', fontWeight: 'bold' }}
+              >
+                {apiResponse.matrixData.keyNumber}
+              </Button>
+            </div>
+          )}
+          
+          {apiResponse.analysis && (
+             <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{apiResponse.analysis}</pre>
+          )}
+          {apiResponse.brief && (
+            <ProCTA reason={apiResponse.briefReason} />
+          )}
         </div>
       )}
     </Section>
