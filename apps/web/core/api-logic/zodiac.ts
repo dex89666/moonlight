@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
 import { isValidSign } from '../guard.js';
 import { getUser } from '../../data/store.js';
+import { ZODIAC_RESPONSES, pickDeterministic } from '../../data/responses';
 
 const SIGN_MAP: Record<string, string> = {
   'oven': 'aries',
@@ -48,8 +49,8 @@ export async function handleZodiac(req: VercelRequest, res: VercelResponse) {
 
     // Use Gemini only
     if (!isGeminiConfigured()) {
-      const stub = `Локальный тестовый астро-отчёт для знака ${sign}.`;
-      return res.json({ analysis: stub, isPro: true, brief: false });
+      const canned = pickDeterministic(`${userId}::${sign}`, ZODIAC_RESPONSES);
+      return res.json({ analysis: canned, isPro: true, brief: false, source: 'canned' });
     }
 
     console.log('[Zodiac] 🛰️ Отправляем запрос в Gemini...');
@@ -68,7 +69,8 @@ export async function handleZodiac(req: VercelRequest, res: VercelResponse) {
     console.error('[Zodiac] ❌ Ошибка:', error);
     const status = error?.status || error?.code || '';
     if (status === 401) {
-      return res.json({ analysis: `Локальный тестовый астро-отчёт для знака ${sign}. Проверьте GEMINI_API_KEY.`, isPro: true, brief: false });
+      const canned = pickDeterministic(`${userId}::${sign}`, ZODIAC_RESPONSES);
+      return res.json({ analysis: canned, isPro: true, brief: false, source: 'canned' });
     }
     if ((error?.message || '').includes('timeout')) {
       return res.json({ analysis: `AI timeout — попробуйте ещё раз.`, isPro: true, brief: false, source: 'stub' });

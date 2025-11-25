@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
+import { TAROT_RESPONSES, pickDeterministic } from '../../data/responses';
 // ⭐️ ИСПРАВЛЕНО: Путь стал ../../data/
 import { getUser } from '../../data/store.js';
 
@@ -24,8 +25,8 @@ export async function handleTarot(
 
   // Use Gemini only: require GEMINI API key
   if (!isGeminiConfigured()) {
-      const stub = `# Карта дня: Теплый Ветер\n\n**Толкование:** Сегодня вы можете почувствовать легкое движение в сторону новых идей.\n\n**Совет:** Сделайте маленький шаг в новом направлении.`
-  return res.json({ analysis: stub, isPro: true, brief: false, source: 'stub' })
+      const canned = pickDeterministic(userId, TAROT_RESPONSES);
+      return res.json({ analysis: canned, isPro: true, brief: false, source: 'canned' })
   }
 
   // --- Use Gemini ---
@@ -52,7 +53,8 @@ export async function handleTarot(
     console.error('[tarot] Gemini error:', error);
     const status = error?.status || error?.code || '';
     if (status === 401) {
-      return res.json({ analysis: `Локальный тестовый ответ для карты дня. Проверьте GEMINI_API_KEY.`, isPro: true, brief: false, source: 'stub' });
+      const canned = pickDeterministic(userId, TAROT_RESPONSES);
+      return res.json({ analysis: canned, isPro: true, brief: false, source: 'canned' });
     }
     if ((error?.message || '').includes('timeout')) {
       return res.json({ analysis: `AI timeout — попробуйте ещё раз.`, isPro: true, brief: false, source: 'stub' });

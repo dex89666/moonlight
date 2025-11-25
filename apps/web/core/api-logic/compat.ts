@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
+import { COMPAT_RESPONSES, pickDeterministic } from '../../data/responses';
 import { isValidDateStr } from '../guard.js';
 import { pathNumber } from '../numerology.js';
 import { getUser } from '../../data/store.js';
@@ -29,8 +30,9 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!isGeminiConfigured()) {
-      const stub = `Локальный тестовый отчёт по совместимости. Проверьте GEMINI_API_KEY.`;
-      return res.json({ analysis: stub, isPro: true, brief: false, matrixData });
+      const key = `${birthDate1}::${birthDate2}`;
+      const canned = pickDeterministic(key, COMPAT_RESPONSES);
+      return res.json({ analysis: canned, isPro: true, brief: false, matrixData, source: 'canned' });
     }
 
     const prompt = `

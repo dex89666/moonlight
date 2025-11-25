@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
+import { MATRIX_RESPONSES, pickDeterministic } from '../../data/responses';
 import { isValidDateStr } from '../guard.js';
 import { pathNumber, summaryForPath } from '../numerology.js';
 import { getUser } from '../../data/store.js';
@@ -82,8 +83,10 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
     const prompt = isPro ? PRO_PROMPT : FREE_PROMPT;
 
     if (!isGeminiConfigured()) {
-      const stub = isPro ? `Локальный тест PRO: ${birthDate}` : FREE_PROMPT;
-      return res.json({ analysis: stub, isPro, brief: !isPro, matrixData, source: 'stub' });
+      // deterministic pick based on userId+birthDate
+      const key = `${userId}::${birthDate}`;
+      const canned = pickDeterministic(key, MATRIX_RESPONSES);
+      return res.json({ analysis: canned, isPro, brief: !isPro, matrixData, source: 'canned' });
     }
 
     let text = await generateWithGemini(prompt, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
@@ -107,15 +110,15 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
 
     const status = error?.status || error?.code || (error?.error && error.error.code);
     if (status === 401) {
-      const fallback = matrixData ? `Короткий портрет: ${matrixData.summary}` : 'Короткий портрет (нет данных)';
-      const stub = isPro ? `Локальный PRO-ответ по дате ${birthDate}. Проверьте GEMINI_API_KEY.` : fallback;
-      return res.json({ analysis: stub, isPro, brief: !isPro, matrixData, source: 'stub' });
+    const key = `${userId}::${birthDate}`;
+    const canned = pickDeterministic(key, MATRIX_RESPONSES);
+    return res.json({ analysis: canned, isPro, brief: !isPro, matrixData, source: 'canned' });
     }
 
     if ((error?.message || '').includes('getaddrinfo') || error?.code === 'ENOTFOUND' || error?.code === 'EAI_AGAIN') {
-      const fallback = matrixData ? `Короткий портрет: ${matrixData.summary}` : 'Короткий портрет (нет данных)';
-      const stub = isPro ? `Локальный PRO-ответ по дате ${birthDate}. Gemini недоступен.` : fallback;
-      return res.json({ analysis: stub, isPro, brief: !isPro, matrixData, source: 'stub' });
+  const key = `${userId}::${birthDate}`;
+  const canned = pickDeterministic(key, MATRIX_RESPONSES);
+  return res.json({ analysis: canned, isPro, brief: !isPro, matrixData, source: 'canned' });
     }
 
     return res.status(500).send(error.message || 'Internal Error');
