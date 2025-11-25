@@ -19,20 +19,35 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
   // Try SDK first
   try {
     const genai = await import('@google/genai');
+    // Prefer explicit client exports that end with 'Client' and have generate methods
     const candidateNames = ['GenerativeServiceClient', 'TextServiceClient', 'GenaiClient', 'GenerativeModelsClient'];
     let ClientCtor: any = null;
     for (const name of candidateNames) {
-      if ((genai as any)[name]) {
+      if ((genai as any)[name] && typeof (genai as any)[name] === 'function') {
         ClientCtor = (genai as any)[name];
         break;
       }
     }
     if (!ClientCtor) {
+      // Scan exports: prefer constructors whose name ends with 'Client' and are not ApiError
+      for (const k of Object.keys(genai)) {
+        const v = (genai as any)[k];
+        if (typeof v === 'function' && (/Client$/.test(k) || /Client$/.test(v?.name || '')) && k !== 'ApiError' && v.name !== 'ApiError') {
+          ClientCtor = v;
+          break;
+        }
+      }
+    }
+    if (!ClientCtor) {
+      // Fallback: pick first function export that provides a generate* method on its prototype
       for (const k of Object.keys(genai)) {
         const v = (genai as any)[k];
         if (typeof v === 'function') {
-          ClientCtor = v;
-          break;
+          const proto = v.prototype || {};
+          if (proto.generate || proto.generateText || proto.generateContent) {
+            ClientCtor = v;
+            break;
+          }
         }
       }
     }
