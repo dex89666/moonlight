@@ -54,37 +54,72 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
     console.warn('[genai] SDK unavailable, falling back to fetch', (e as any)?.message || e);
   }
 
-  // Fetch fallback
-  const geminiUrl = (process.env.GEMINI_API_URL || 'https://api.gemini.google.com/v1').replace(/\/$/, '');
+  // Fetch fallback: try several plausible Gemini endpoints and shapes.
+  const baseUrl = (process.env.GEMINI_API_URL || 'https://api.gemini.google.com/v1').replace(/\/$/, '');
   const model = opts?.model || process.env.GEMINI_MODEL || 'gemini-1.5-pro';
-  const body = { model, prompt };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  // Candidate endpoints to try (some deployments use different paths)
+  const candidates = [
+    { path: '/completions', body: { model, prompt } },
+    { path: '/v1/completions', body: { model, prompt } },
+    { path: '/generateText', body: { model, prompt } },
+    { path: '/v1/generateText', body: { model, prompt } },
+    // Some compatibility layers accept {input} instead of prompt
+    { path: '/completions', body: { model, input: prompt } },
+  ];
+
+  let lastErr: any = null;
   try {
-    const resp = await fetch(geminiUrl + '/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${geminiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    if (!resp.ok) {
-      const txt = await resp.text().catch(() => '');
-      const err: any = new Error(`Gemini error: ${resp.status} ${resp.statusText} ${txt}`);
-      err.status = resp.status;
-      throw err;
+    for (const c of candidates) {
+      const url = baseUrl + c.path;
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${geminiKey}`,
+          },
+          body: JSON.stringify(c.body),
+          signal: controller.signal,
+        });
+        if (!resp.ok) {
+          const txt = await resp.text().catch(() => '');
+          lastErr = new Error(`Gemini error at ${url}: ${resp.status} ${resp.statusText} ${txt}`);
+          (lastErr as any).status = resp.status;
+          // If 404, try next candidate; otherwise break and throw after clearing timer
+          if (resp.status === 404) {
+            continue
+          }
+          clearTimeout(timer);
+          throw lastErr;
+        }
+
+        const data = await resp.json().catch(() => ({}));
+        clearTimeout(timer);
+        // Try several places for text
+        const text = data?.choices?.[0]?.text || data?.output?.[0]?.content?.[0]?.text || data?.text || data?.result || '';
+        return String(text || '');
+      } catch (innerErr: any) {
+        if (innerErr.name === 'AbortError') {
+          clearTimeout(timer);
+          throw new Error('AI timeout');
+        }
+        lastErr = innerErr;
+        // try next candidate
+        continue;
+      }
     }
-    const data = await resp.json().catch(() => ({}));
-    const text = data?.choices?.[0]?.text || data?.output?.[0]?.content?.[0]?.text || data?.text || '';
-    return String(text || '');
-  } catch (e: any) {
-    if (e.name === 'AbortError') throw new Error('AI timeout');
-    throw e;
+  } finally {
+    clearTimeout(timer);
   }
+
+  // If we reach here, none of the endpoints worked
+  const err: any = new Error(`Gemini error: no working endpoint (last error: ${lastErr?.message || 'unknown'})`);
+  err.status = lastErr?.status || 404;
+  throw err;
 }
 
 export function isGeminiConfigured() {
