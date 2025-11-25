@@ -38,7 +38,8 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
     }
 
     if (ClientCtor) {
-      const client = new ClientCtor({});
+  console.log('[genai] SDK client ctor found:', ClientCtor.name || '<anonymous>')
+  const client = new ClientCtor({});
       const model = opts?.model || process.env.GEMINI_MODEL || 'gemini-1.5-pro';
       const parent = process.env.GEMINI_PARENT || `models/${model}`;
       const req: any = { model: parent, prompt: { text: prompt } };
