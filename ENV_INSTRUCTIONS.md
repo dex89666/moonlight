@@ -19,7 +19,14 @@ Local development instructions
    ADMIN_USER_ID=your_telegram_user_id
    VERCEL_KV_URL=...       # optional for local KV access
    VERCEL_KV_TOKEN=...
-   OPENAI_API_KEY=...
+   # We now use Google Gemini by default. Provide your Gemini key here:
+   GEMINI_API_KEY=...
+   # Optional: override model/parent used for Gemini (defaults to gemini-1.5-pro)
+   GEMINI_MODEL=gemini-1.5-pro
+   GEMINI_PARENT=models/gemini-1.5-pro
+   # Optional: request timeout in ms
+   GEMINI_TIMEOUT_MS=8000
+   # Backwards compatibility: if you still have MODEL set, it's used only where relevant
    MODEL=gpt-4o-mini
 
 Notes:
