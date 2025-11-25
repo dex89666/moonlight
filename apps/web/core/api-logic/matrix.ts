@@ -106,7 +106,16 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
     const openaiConfig: any = { apiKey: rawKey }
 
     // Gemini detection: explicit override OR presence of GEMINI_API_KEY
-    const geminiKey = process.env.GEMINI_API_KEY || ''
+    // Support two common setups:
+    // - GEMINI_API_KEY contains the secret key and GEMINI_API_URL is the endpoint
+    // - accidental case: user put key into GEMINI_API_URL (we detect that and use as key)
+    let geminiKey = process.env.GEMINI_API_KEY || ''
+    const envGeminiUrl = process.env.GEMINI_API_URL || ''
+    // If GEMINI_API_KEY missing but GEMINI_API_URL looks like a key (starts with 'ya29.' or 'AIza' or has long token), use it as key
+    if (!geminiKey && envGeminiUrl && (/^(ya29\.|AIza|[A-Za-z0-9_-]{30,})/.test(envGeminiUrl))) {
+      console.warn('[Matrix] GEMINI_API_KEY missing — using GEMINI_API_URL value as key (please rename env var)')
+      geminiKey = envGeminiUrl
+    }
     const providerOverrideGemini = (process.env.OPENAI_PROVIDER || '').toLowerCase() === 'gemini'
     const chooseGemini = providerOverrideGemini || (!!geminiKey && !providerOverride)
 
