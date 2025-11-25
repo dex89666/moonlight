@@ -105,8 +105,15 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
     const looksLikeOpenAIKey = !looksLikeOpenRouterKey && rawKey.startsWith('sk-')
     const openaiConfig: any = { apiKey: rawKey }
 
+    // Gemini detection: explicit override OR presence of GEMINI_API_KEY
+    const geminiKey = process.env.GEMINI_API_KEY || ''
+    const providerOverrideGemini = (process.env.OPENAI_PROVIDER || '').toLowerCase() === 'gemini'
+    const chooseGemini = providerOverrideGemini || (!!geminiKey && !providerOverride)
+
     let chosenProvider = ''
-    if (providerOverride === 'openai') {
+    if (chooseGemini) {
+      chosenProvider = 'Gemini (forced/present GEMINI_API_KEY)'
+    } else if (providerOverride === 'openai') {
       chosenProvider = 'OpenAI (forced by OPENAI_PROVIDER)'
     } else if (providerOverride === 'openrouter') {
       chosenProvider = 'OpenRouter (forced by OPENAI_PROVIDER)'
@@ -125,14 +132,45 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log('[Matrix] Selected provider:', chosenProvider, ' (OPENAI_PROVIDER=', providerOverride || '(none)', ')')
-    const openai = new OpenAI(openaiConfig)
 
-    const completion = await openai.chat.completions.create({
-      model: process.env.MODEL || "mistralai/mistral-7b-instruct:free",
-      messages: [{ role: "user", content: prompt }]
-    });
+    let text = ''
+    if (chooseGemini) {
+      // Call Gemini-compatible REST API. Expect two envs: GEMINI_API_KEY and optional GEMINI_API_URL.
+      try {
+        const geminiUrl = process.env.GEMINI_API_URL || 'https://api.gemini.google.com/v1'
+        const model = process.env.GEMINI_MODEL || 'gemini-1.5-pro'
+        const body = { model, prompt }
+        console.log('[Matrix] Calling Gemini at', geminiUrl, 'model=', model)
+        const resp = await fetch(geminiUrl + '/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${geminiKey}`
+          },
+          body: JSON.stringify(body),
+          // keep fetch timeout controlled by runtime or external AbortController
+        })
+        if (!resp.ok) {
+          const txt = await resp.text().catch(() => '')
+          throw new Error(`Gemini error: ${resp.status} ${resp.statusText} ${txt}`)
+        }
+        const data = await resp.json().catch(() => ({}))
+        // Try common shapes
+        text = data?.choices?.[0]?.text || data?.output?.[0]?.content?.[0]?.text || data?.text || ''
+      } catch (gErr: any) {
+        console.error('[Matrix] Gemini call failed', gErr)
+        throw gErr
+      }
+    } else {
+      const openai = new OpenAI(openaiConfig)
 
-    const text = completion.choices[0].message.content || '';
+      const completion = await openai.chat.completions.create({
+        model: process.env.MODEL || "mistralai/mistral-7b-instruct:free",
+        messages: [{ role: "user", content: prompt }]
+      });
+
+      text = completion.choices[0].message.content || '';
+    }
 
     if (!text) throw new Error('Empty response from AI');
 
