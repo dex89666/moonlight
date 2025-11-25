@@ -96,6 +96,29 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
     console.warn('[genai] SDK unavailable', e?.message || e);
   }
 
+  // If SDK was not available but we have service account JSON, try to mint an OAuth access token
+  // using google-auth-library and then use that token for HTTP fetch calls below.
+  let saAccessToken: string | null = null;
+  try {
+    if (!sdkTried && saCredentialsTop) {
+      try {
+        const {JWT} = await import('google-auth-library');
+        const jwtClient = new JWT({
+          email: saCredentialsTop.client_email,
+          key: saCredentialsTop.private_key,
+          scopes: ['https://www.googleapis.com/auth/cloud-platform']
+        });
+        const res = await jwtClient.authorize();
+        saAccessToken = res?.access_token || null;
+        if (saAccessToken) console.log('[genai] minted access token from SA JSON');
+      } catch (e) {
+        console.warn('[genai] SA token minting failed', e?.message || e);
+      }
+    }
+  } catch (e) {
+    console.warn('[genai] SA token flow error', e?.message || e);
+  }
+
   // If we used service-account and SDK failed, abort and return error (avoid HTTP key fallback)
   const hasSa = Boolean(saCredentialsTop);
   if (hasSa && sdkTried) {
@@ -137,8 +160,13 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
         const isApiKey = typeof geminiKey === 'string' && (/^AIza/).test(geminiKey);
         const fetchUrl = isApiKey ? `${url}${url.includes('?') ? '&' : '?'}key=${encodeURIComponent(geminiKey)}` : url;
         const headers: any = { 'Content-Type': 'application/json' };
-        if (!isApiKey && geminiKey) headers['Authorization'] = `Bearer ${geminiKey}`;
-        const maskedKey = isApiKey ? `${geminiKey.slice(0,4)}...${geminiKey.slice(-4)}` : (geminiKey ? 'Bearer *****' : 'none');
+        // Prefer SA minted access token when available
+        if (saAccessToken) {
+          headers['Authorization'] = `Bearer ${saAccessToken}`;
+        } else if (!isApiKey && geminiKey) {
+          headers['Authorization'] = `Bearer ${geminiKey}`;
+        }
+        const maskedKey = isApiKey ? `${geminiKey.slice(0,4)}...${geminiKey.slice(-4)}` : (saAccessToken ? 'Bearer <sa-token>' : (geminiKey ? 'Bearer *****' : 'none'));
         console.log('[genai] fetch url final (masked key)', url, { usingApiKey: isApiKey, key: maskedKey });
         const resp = await fetch(fetchUrl, { method: 'POST', headers, body: JSON.stringify(c.body), signal: controller.signal });
         console.log('[genai] response status', url, resp.status, resp.statusText);
