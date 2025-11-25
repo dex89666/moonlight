@@ -144,38 +144,87 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
 
     let text = ''
     if (chooseGemini) {
-      // Call Gemini-compatible REST API. Expect two envs: GEMINI_API_KEY and optional GEMINI_API_URL.
+      // Prefer official @google/genai SDK when available. Fall back to direct fetch if SDK not present.
+      let usedSdk = false
       try {
-        const geminiUrl = process.env.GEMINI_API_URL || 'https://api.gemini.google.com/v1'
-        const model = process.env.GEMINI_MODEL || 'gemini-1.5-pro'
-        const body = { model, prompt }
-        console.log('[Matrix] Calling Gemini at', geminiUrl, 'model=', model)
-        const resp = await fetch(geminiUrl + '/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${geminiKey}`
-          },
-          body: JSON.stringify(body),
-          // keep fetch timeout controlled by runtime or external AbortController
-        })
-        if (!resp.ok) {
-          const txt = await resp.text().catch(() => '')
-          throw new Error(`Gemini error: ${resp.status} ${resp.statusText} ${txt}`)
+        const genai = await import('@google/genai')
+        // Pick a client constructor from common export names, or the first exported class/function
+        const candidateNames = ['GenerativeServiceClient', 'TextServiceClient', 'GenaiClient', 'GenerativeModelsClient']
+        let ClientCtor: any = null
+        for (const name of candidateNames) {
+          if ((genai as any)[name]) {
+            ClientCtor = (genai as any)[name]
+            break
+          }
         }
-        const data = await resp.json().catch(() => ({}))
-        // Try common shapes
-        text = data?.choices?.[0]?.text || data?.output?.[0]?.content?.[0]?.text || data?.text || ''
-      } catch (gErr: any) {
-        console.error('[Matrix] Gemini call failed', gErr)
-        // If network/DNS error (e.g., ENOTFOUND), return a safe local stub instead of 500
-        const causeCode = gErr?.cause?.code || gErr?.code || ''
-        if (causeCode === 'ENOTFOUND' || causeCode === 'EAI_AGAIN' || gErr?.message?.includes('getaddrinfo')) {
-          const fallback = matrixData ? `Короткий портрет: ${matrixData.summary}` : 'Короткий портрет (нет данных)'
-          const stub = isPro ? `Локальный PRO-ответ по дате ${birthDate}. Gemini недоступен.` : fallback
-          return res.json({ analysis: stub, isPro, brief: !isPro, matrixData, source: 'stub' })
+        if (!ClientCtor) {
+          // pick the first export that looks like a constructor
+          for (const k of Object.keys(genai)) {
+            const v = (genai as any)[k]
+            if (typeof v === 'function') {
+              ClientCtor = v
+              break
+            }
+          }
         }
-        throw gErr
+        if (ClientCtor) {
+          usedSdk = true
+          console.log('[Matrix] Using @google/genai SDK with client', ClientCtor.name || '(anon)')
+          const client = new ClientCtor({})
+          const model = process.env.GEMINI_MODEL || 'gemini-1.5-pro'
+          const parent = process.env.GEMINI_PARENT || `models/${model}`
+          // Use generateText / generateContent depending on SDK version
+          try {
+            const req: any = {
+              model: parent,
+              prompt: { text: prompt }
+            }
+            const resp = await client.generateText?.(req) || await client.generateContent?.(req) || await client.generate?.(req)
+            // normalize response
+            const out = Array.isArray(resp) ? resp[0] : resp
+            text = out?.text || out?.candidates?.[0]?.content || out?.candidates?.[0]?.output?.[0]?.content?.[0]?.text || out?.output?.[0]?.content?.[0]?.text || ''
+          } catch (sdkErr: any) {
+            console.error('[Matrix] GenAI SDK call failed', sdkErr)
+            throw sdkErr
+          }
+        }
+      } catch (impErr) {
+        // SDK not available — fall back to fetch
+        console.warn('[Matrix] @google/genai SDK not available, falling back to fetch', impErr?.message || impErr)
+      }
+
+      if (!usedSdk) {
+        try {
+          const geminiUrl = process.env.GEMINI_API_URL || 'https://api.gemini.google.com/v1'
+          const model = process.env.GEMINI_MODEL || 'gemini-1.5-pro'
+          const body = { model, prompt }
+          console.log('[Matrix] Calling Gemini (fetch) at', geminiUrl, 'model=', model)
+          const resp = await fetch(geminiUrl + '/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${geminiKey}`
+            },
+            body: JSON.stringify(body),
+          })
+          if (!resp.ok) {
+            const txt = await resp.text().catch(() => '')
+            throw new Error(`Gemini error: ${resp.status} ${resp.statusText} ${txt}`)
+          }
+          const data = await resp.json().catch(() => ({}))
+          // Try common shapes
+          text = data?.choices?.[0]?.text || data?.output?.[0]?.content?.[0]?.text || data?.text || ''
+        } catch (gErr: any) {
+          console.error('[Matrix] Gemini call failed', gErr)
+          // If network/DNS error (e.g., ENOTFOUND), return a safe local stub instead of 500
+          const causeCode = gErr?.cause?.code || gErr?.code || ''
+          if (causeCode === 'ENOTFOUND' || causeCode === 'EAI_AGAIN' || gErr?.message?.includes('getaddrinfo')) {
+            const fallback = matrixData ? `Короткий портрет: ${matrixData.summary}` : 'Короткий портрет (нет данных)'
+            const stub = isPro ? `Локальный PRO-ответ по дате ${birthDate}. Gemini недоступен.` : fallback
+            return res.json({ analysis: stub, isPro, brief: !isPro, matrixData, source: 'stub' })
+          }
+          throw gErr
+        }
       }
     } else {
       const openai = new OpenAI(openaiConfig)
