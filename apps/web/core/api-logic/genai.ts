@@ -100,14 +100,24 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const candidates = [
-    { path: `/v1/models/${model}:generate`, body: { prompt: { text: prompt } } },
-    { path: `/v1beta2/models/${model}:generate`, body: { prompt: { text: prompt } } },
-    { path: `/models/${model}:generate`, body: { prompt: { text: prompt } } },
-    { path: '/v1/completions', body: { model, prompt } },
-    { path: '/completions', body: { model, prompt } },
-    { path: '/completions', body: { model, input: prompt } },
+  // Build candidate endpoints. If model-specific endpoints 404, try alternative model ids
+  const altModels = [
+    model,
+    'text-bison-001',
+    'models/text-bison-001',
+    'chat-bison-001',
   ];
+  const candidates: Array<{ path: string; body: any }> = [];
+  for (const m of altModels) {
+    if (!m) continue;
+    // ensure paths both with and without /v1
+    candidates.push({ path: `/v1/models/${m}:generate`, body: { prompt: { text: prompt } } });
+    candidates.push({ path: `/models/${m}:generate`, body: { prompt: { text: prompt } } });
+  }
+  // generic compatibility endpoints
+  candidates.push({ path: '/v1/completions', body: { model, prompt } });
+  candidates.push({ path: '/completions', body: { model, prompt } });
+  candidates.push({ path: '/completions', body: { model, input: prompt } });
 
   let lastErr: any = null;
   try {
@@ -116,11 +126,13 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
       console.log('[genai] trying endpoint', url, { bodySample: JSON.stringify(c.body).slice(0, 200) });
       try {
           // If geminiKey looks like an API key (starts with AIza), send as ?key= instead of Bearer
-          const isApiKey = typeof geminiKey === 'string' && (/^AIza/).test(geminiKey);
-          const fetchUrl = isApiKey ? `${url}${url.includes('?') ? '&' : '?'}key=${encodeURIComponent(geminiKey)}` : url;
-          const headers: any = { 'Content-Type': 'application/json' };
-          if (!isApiKey) headers['Authorization'] = `Bearer ${geminiKey}`;
-          console.log('[genai] fetch url final', fetchUrl, { usingApiKey: isApiKey });
+    const isApiKey = typeof geminiKey === 'string' && (/^AIza/).test(geminiKey);
+    const fetchUrl = isApiKey ? `${url}${url.includes('?') ? '&' : '?'}key=${encodeURIComponent(geminiKey)}` : url;
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (!isApiKey) headers['Authorization'] = `Bearer ${geminiKey}`;
+    // Mask key in logs: show first 4 and last 4 chars
+    const maskedKey = isApiKey ? `${geminiKey.slice(0,4)}...${geminiKey.slice(-4)}` : (geminiKey ? 'Bearer *****' : 'none');
+    console.log('[genai] fetch url final (masked key)', url, { usingApiKey: isApiKey, key: maskedKey });
           const resp = await fetch(fetchUrl, {
             method: 'POST',
             headers,
