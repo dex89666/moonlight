@@ -168,6 +168,13 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
         text = data?.choices?.[0]?.text || data?.output?.[0]?.content?.[0]?.text || data?.text || ''
       } catch (gErr: any) {
         console.error('[Matrix] Gemini call failed', gErr)
+        // If network/DNS error (e.g., ENOTFOUND), return a safe local stub instead of 500
+        const causeCode = gErr?.cause?.code || gErr?.code || ''
+        if (causeCode === 'ENOTFOUND' || causeCode === 'EAI_AGAIN' || gErr?.message?.includes('getaddrinfo')) {
+          const fallback = matrixData ? `Короткий портрет: ${matrixData.summary}` : 'Короткий портрет (нет данных)'
+          const stub = isPro ? `Локальный PRO-ответ по дате ${birthDate}. Gemini недоступен.` : fallback
+          return res.json({ analysis: stub, isPro, brief: !isPro, matrixData, source: 'stub' })
+        }
         throw gErr
       }
     } else {
