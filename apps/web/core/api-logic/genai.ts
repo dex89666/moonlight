@@ -1,5 +1,6 @@
 // Helper to call Gemini (prefer @google/genai SDK, fallback to fetch)
-import { MODEL as FALLBACK_MODEL } from '../config';
+// Use env fallback model to avoid static import issues in serverless runtime
+const FALLBACK_MODEL = process.env.MODEL || 'mistralai/mistral-7b-instruct:free';
 
 export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: number, model?: string }) {
   const envGeminiKey = process.env.GEMINI_API_KEY || '';
