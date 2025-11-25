@@ -56,7 +56,8 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
 
   // Fetch fallback: try several plausible Gemini endpoints and shapes.
   // Use Google's Generative Language endpoint by default (recommended)
-  const baseUrl = (process.env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com/v1').replace(/\/$/, '');
+  // Keep baseUrl without /v1 so we can compose /v1/models/{model}:generate correctly
+  const baseUrl = (process.env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
   const model = opts?.model || process.env.GEMINI_MODEL || 'gemini-1.5-pro';
 
   const controller = new AbortController();
@@ -64,9 +65,12 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
 
   // Candidate endpoints to try (some deployments use different paths)
     const candidates = [
-    // Google Generative Language recommended shape: POST /v1/models/{model}:generate
-    { path: `/v1/models/${model}:generate`, body: { prompt } },
-    { path: `/models/${model}:generate`, body: { prompt } },
+    // Correct Google GL endpoint (recommended)
+    { path: `/v1/models/${model}:generate`, body: { prompt: { text: prompt } } },
+    // Backwards/alternate placements
+    { path: `/v1beta2/models/${model}:generate`, body: { prompt: { text: prompt } } },
+    { path: `/models/${model}:generate`, body: { prompt: { text: prompt } } },
+    // Generic completion endpoints (compatibility)
     { path: '/v1/completions', body: { model, prompt } },
     { path: '/completions', body: { model, prompt } },
     // Some compatibility layers accept {input} instead of prompt
