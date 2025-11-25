@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
 import { isValidSign } from '../guard.js';
 import { getUser } from '../../data/store.js';
-import { ZODIAC_RESPONSES, pickDeterministic } from '../../data/responses';
+import { ZODIAC_RESPONSES, pickDeterministic } from '../../data/responses.js';
 
 const SIGN_MAP: Record<string, string> = {
   'oven': 'aries',

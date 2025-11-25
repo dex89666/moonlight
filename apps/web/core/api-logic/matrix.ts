@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
-import { MATRIX_RESPONSES, pickDeterministic } from '../../data/responses';
+import { MATRIX_RESPONSES, pickDeterministic } from '../../data/responses.js';
 import { isValidDateStr } from '../guard.js';
 import { pathNumber, summaryForPath } from '../numerology.js';
 import { getUser } from '../../data/store.js';

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
-import { TAROT_RESPONSES, pickDeterministic } from '../../data/responses';
+import { TAROT_RESPONSES, pickDeterministic } from '../../data/responses.js';
 // ⭐️ ИСПРАВЛЕНО: Путь стал ../../data/
 import { getUser } from '../../data/store.js';
 
