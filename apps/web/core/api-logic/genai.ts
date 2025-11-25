@@ -8,10 +8,22 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
     geminiKey = envGeminiUrl;
   }
 
+  // Parse service-account credentials early so we can allow SA-only flow
+  const saJsonRawTop = process.env.GEMINI_SA_JSON || '';
+  const saJsonB64Top = process.env.GEMINI_SA_B64 || '';
+  let saCredentialsTop: any = null;
+  try {
+    if (saJsonRawTop) saCredentialsTop = JSON.parse(saJsonRawTop);
+    else if (saJsonB64Top) saCredentialsTop = JSON.parse(Buffer.from(saJsonB64Top, 'base64').toString('utf-8'));
+  } catch (e) {
+    // ignore parse errors
+  }
+
   const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || opts?.timeoutMs || 8000);
 
-  if (!geminiKey) {
-    const err: any = new Error('GEMINI_API_KEY missing');
+  // If neither API key nor service-account credentials provided, fail early
+  if (!geminiKey && !saCredentialsTop) {
+    const err: any = new Error('GEMINI_API_KEY or GEMINI_SA_JSON/GEMINI_SA_B64 missing');
     err.status = 401;
     throw err;
   }
@@ -39,10 +51,12 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
     // If a service account JSON is provided via env, parse and prepare credentials
     const saJsonRaw = process.env.GEMINI_SA_JSON || '';
     const saJsonB64 = process.env.GEMINI_SA_B64 || '';
-    let saCredentials: any = null;
+    let saCredentials: any = saCredentialsTop || null;
     try {
-      if (saJsonRaw) saCredentials = JSON.parse(saJsonRaw);
-      else if (saJsonB64) saCredentials = JSON.parse(Buffer.from(saJsonB64, 'base64').toString('utf-8'));
+      if (!saCredentials) {
+        if (saJsonRaw) saCredentials = JSON.parse(saJsonRaw);
+        else if (saJsonB64) saCredentials = JSON.parse(Buffer.from(saJsonB64, 'base64').toString('utf-8'));
+      }
     } catch (e) {
       // ignore parse errors
     }
@@ -81,11 +95,14 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
 
     if (ClientCtor) {
       console.log('[genai] SDK client ctor found:', ClientCtor.name || '<anonymous>');
-      // If we have parsed service-account credentials, pass them to the client if supported
+      // Prefer service-account credentials if available
       const clientOpts: any = {};
       if (saCredentials) {
         clientOpts.credentials = saCredentials;
         console.log('[genai] using service account credentials from GEMINI_SA_JSON/GEMINI_SA_B64');
+      } else if (geminiKey) {
+        // If only API key is provided, still try client with default auth (some SDKs read env)
+        console.log('[genai] no service account found; SDK will fallback to API key behavior');
       }
       const client = new ClientCtor(clientOpts);
       try {
