@@ -16,10 +16,28 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
     throw err;
   }
 
+  // Helper to extract text from various SDK shapes
+  const extractTextFromSdk = (resp: any) => {
+    if (!resp) return '';
+    // common shapes
+    if (typeof resp === 'string') return resp;
+    if (Array.isArray(resp) && resp.length) return extractTextFromSdk(resp[0]);
+    if (resp.output && Array.isArray(resp.output) && resp.output[0]) {
+      // Google GenAI: output[0].content[0].text
+      try { return resp.output[0].content?.[0]?.text || '' } catch { /* ignore */ }
+    }
+    if (resp.candidates && Array.isArray(resp.candidates) && resp.candidates[0]) {
+      return resp.candidates[0].content || resp.candidates[0].text || '';
+    }
+    if (resp.text) return resp.text;
+    if (resp.result) return resp.result;
+    return '';
+  };
+
   // Try SDK first
   try {
     const genai = await import('@google/genai');
-    // Prefer explicit client exports that end with 'Client' and have generate methods
+    // Prefer explicit client exports that end with 'Client'
     const candidateNames = ['GenerativeServiceClient', 'TextServiceClient', 'GenaiClient', 'GenerativeModelsClient'];
     let ClientCtor: any = null;
     for (const name of candidateNames) {
@@ -29,7 +47,6 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
       }
     }
     if (!ClientCtor) {
-      // Scan exports: prefer constructors whose name ends with 'Client' and are not ApiError
       for (const k of Object.keys(genai)) {
         const v = (genai as any)[k];
         if (typeof v === 'function' && (/Client$/.test(k) || /Client$/.test(v?.name || '')) && k !== 'ApiError' && v.name !== 'ApiError') {
@@ -39,7 +56,6 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
       }
     }
     if (!ClientCtor) {
-      // Fallback: pick first function export that provides a generate* method on its prototype
       for (const k of Object.keys(genai)) {
         const v = (genai as any)[k];
         if (typeof v === 'function') {
@@ -53,20 +69,25 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
     }
 
     if (ClientCtor) {
-  console.log('[genai] SDK client ctor found:', ClientCtor.name || '<anonymous>')
-  const client = new ClientCtor({});
-      const model = opts?.model || process.env.GEMINI_MODEL || 'gemini-1.5-pro';
-      const parent = process.env.GEMINI_PARENT || `models/${model}`;
-      const req: any = { model: parent, prompt: { text: prompt } };
-
-      const p = client.generateText?.(req) || client.generateContent?.(req) || client.generate?.(req);
-      const resp = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('AI timeout')), timeoutMs))]);
-      const out = Array.isArray(resp) ? resp[0] : resp;
-      const text = out?.text || out?.candidates?.[0]?.content || out?.candidates?.[0]?.output?.[0]?.content?.[0]?.text || out?.output?.[0]?.content?.[0]?.text || '';
-      return String(text || '');
+      console.log('[genai] SDK client ctor found:', ClientCtor.name || '<anonymous>');
+      const client = new ClientCtor({});
+      try {
+        const model = opts?.model || process.env.GEMINI_MODEL || 'gemini-1.5-pro';
+        const parent = process.env.GEMINI_PARENT || `models/${model}`;
+        const req: any = { model: parent, prompt: { text: prompt } };
+        console.log('[genai] SDK request:', { parent, samplePrompt: prompt.slice(0, 120) });
+        const p = client.generateText?.(req) || client.generateContent?.(req) || client.generate?.(req);
+        const resp = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('AI timeout')), timeoutMs))]);
+        console.log('[genai] SDK raw response:', resp);
+        const text = extractTextFromSdk(resp);
+        if (text) return String(text);
+        // if SDK gave no text, fallthrough to fetch fallback
+        console.warn('[genai] SDK returned empty text, falling back to HTTP fetch fallback');
+      } catch (sdkErr) {
+        console.warn('[genai] SDK call failed, falling back to fetch', sdkErr && sdkErr.message ? sdkErr.message : sdkErr);
+      }
     }
   } catch (e) {
-    // SDK missing or failed -> fallback to fetch
     console.warn('[genai] SDK unavailable, falling back to fetch', (e as any)?.message || e);
   }
 
@@ -79,17 +100,12 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  // Candidate endpoints to try (some deployments use different paths)
-    const candidates = [
-    // Correct Google GL endpoint (recommended)
+  const candidates = [
     { path: `/v1/models/${model}:generate`, body: { prompt: { text: prompt } } },
-    // Backwards/alternate placements
     { path: `/v1beta2/models/${model}:generate`, body: { prompt: { text: prompt } } },
     { path: `/models/${model}:generate`, body: { prompt: { text: prompt } } },
-    // Generic completion endpoints (compatibility)
     { path: '/v1/completions', body: { model, prompt } },
     { path: '/completions', body: { model, prompt } },
-    // Some compatibility layers accept {input} instead of prompt
     { path: '/completions', body: { model, input: prompt } },
   ];
 
@@ -97,40 +113,46 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
   try {
     for (const c of candidates) {
       const url = baseUrl + c.path;
+      console.log('[genai] trying endpoint', url, { bodySample: JSON.stringify(c.body).slice(0, 200) });
       try {
-        const resp = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${geminiKey}`,
-          },
-          body: JSON.stringify(c.body),
-          signal: controller.signal,
-        });
+          // If geminiKey looks like an API key (starts with AIza), send as ?key= instead of Bearer
+          const isApiKey = typeof geminiKey === 'string' && (/^AIza/).test(geminiKey);
+          const fetchUrl = isApiKey ? `${url}${url.includes('?') ? '&' : '?'}key=${encodeURIComponent(geminiKey)}` : url;
+          const headers: any = { 'Content-Type': 'application/json' };
+          if (!isApiKey) headers['Authorization'] = `Bearer ${geminiKey}`;
+          console.log('[genai] fetch url final', fetchUrl, { usingApiKey: isApiKey });
+          const resp = await fetch(fetchUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(c.body),
+            signal: controller.signal,
+          });
+        console.log('[genai] response status', url, resp.status, resp.statusText);
+        const rawText = await resp.text().catch(() => '');
+        console.log('[genai] response body (raw)', url, rawText.slice(0, 1000));
         if (!resp.ok) {
-          const txt = await resp.text().catch(() => '');
-          lastErr = new Error(`Gemini error at ${url}: ${resp.status} ${resp.statusText} ${txt}`);
+          lastErr = new Error(`Gemini error at ${url}: ${resp.status} ${resp.statusText} ${rawText}`);
           (lastErr as any).status = resp.status;
-          // If 404, try next candidate; otherwise break and throw after clearing timer
           if (resp.status === 404) {
-            continue
+            continue;
           }
           clearTimeout(timer);
           throw lastErr;
         }
 
-        const data = await resp.json().catch(() => ({}));
+        let data: any = {};
+        try { data = JSON.parse(rawText || '{}') } catch (pErr) { data = {} }
         clearTimeout(timer);
-        // Try several places for text
-        const text = data?.choices?.[0]?.text || data?.output?.[0]?.content?.[0]?.text || data?.text || data?.result || '';
-        return String(text || '');
+        console.log('[genai] parsed data keys', Object.keys(data || {}));
+        const text = data?.choices?.[0]?.text || data?.output?.[0]?.content?.[0]?.text || data?.text || data?.result || data?.candidates?.[0]?.content || '';
+        if (text) return String(text);
+        lastErr = new Error(`Empty body from ${url}`);
       } catch (innerErr: any) {
         if (innerErr.name === 'AbortError') {
           clearTimeout(timer);
           throw new Error('AI timeout');
         }
         lastErr = innerErr;
-        // try next candidate
         continue;
       }
     }
@@ -138,7 +160,6 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
     clearTimeout(timer);
   }
 
-  // If we reach here, none of the endpoints worked
   const err: any = new Error(`Gemini error: no working endpoint (last error: ${lastErr?.message || 'unknown'})`);
   err.status = lastErr?.status || 404;
   throw err;
