@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import OpenAI from 'openai';
+import { generateWithGemini, isGeminiConfigured } from './genai.js';
 // ⭐️ ИСПРАВЛЕНО: Берем конфиг из соседней папки core
 import { SYSTEM_PROMPT, MODEL } from '../config.js';
 import { isAllowedTopic } from '../guard.js';
@@ -31,27 +31,13 @@ export async function handleChat(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return res.json({ 
-        output: `(Тест) Ответ на: ${prompt}. (Ключ API не найден)`,
-        isPro: u.isPro 
-      });
+    // Use Gemini only
+    if (!isGeminiConfigured()) {
+      return res.json({ output: `(Тест) Ответ на: ${prompt}. Проверьте GEMINI_API_KEY.`, isPro: u.isPro });
     }
 
-    const openai = new OpenAI({
-      baseURL: "https://openrouter.ai/api/v1",
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-
-    const completion = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `Контекст: ${category}. Вопрос пользователя: ${prompt}` }
-      ],
-    });
-
-    const answer = completion.choices[0].message.content || 'Нет ответа';
+    const fullPrompt = `${SYSTEM_PROMPT}\n\nКонтекст: ${category}. Вопрос пользователя: ${prompt}`;
+    const answer = await generateWithGemini(fullPrompt, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
     incFree(userId);
 
     return res.json({

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import OpenAI from 'openai'; // ⭐️ Используем SDK
+import { generateWithGemini, isGeminiConfigured } from './genai.js';
 import { isValidDateStr } from '../guard.js';
 import { pathNumber } from '../numerology.js';
 import { getUser } from '../../data/store.js';
@@ -28,31 +28,19 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
       return res.json({ analysis: brief, isPro: false, brief: true, briefReason: 'free_quota', matrixData });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      const stub = `Локальный тестовый отчёт по совместимости.`;
+    if (!isGeminiConfigured()) {
+      const stub = `Локальный тестовый отчёт по совместимости. Проверьте GEMINI_API_KEY.`;
       return res.json({ analysis: stub, isPro: true, brief: false, matrixData });
     }
-    
-    console.log('[Compat] 🤖 Запрос в OpenAI...');
-    const openai = new OpenAI({
-      baseURL: "https://openrouter.ai/api/v1",
-      apiKey: process.env.OPENAI_API_KEY,
-    });
 
     const prompt = `
     Проанализируй взаимодействие двух числовых энергий: ${p1} и ${p2}.
-    Дай краткую характеристику союза, сильные стороны и зоны роста.
+    Дай краткую характеристику союза, сильные стороны и возможные зоны напряжения.
     `;
-    
-    const completion = await openai.chat.completions.create({
-      model: process.env.MODEL || 'mistralai/mistral-7b-instruct:free',
-      messages: [{ role: "user", content: prompt }],
-    });
 
-    const text = completion.choices[0].message.content;
+    const text = await generateWithGemini(prompt, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
     if (!text) throw new Error('Empty response from AI');
-    
-    console.log('[Compat] ✅ Успех');
+
     return res.json({ analysis: text, isPro: true, brief: false, matrixData });
 
   } catch (error: any) {

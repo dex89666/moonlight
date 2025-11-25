@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prepare": "husky install",
     "dev:api": "tsx _local_server.ts",
     "dev:api:stub": "SET USE_STUB=true && tsx _local_server.ts",
     "build": "cd apps/web && npm install && npm run build",
@@ -11,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/genai": "^1.30.0",
     "@vercel/kv": "^1.0.1",
     "@vercel/node": "^3.2.29",
     "dotenv": "^16.6.1",
@@ -31,6 +33,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.4.0",
+    "husky": "^9.1.7",
     "playwright": "^1.56.0",
     "tsx": "^4.20.6",
     "typescript": "~5.8.3",
