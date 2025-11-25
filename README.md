@@ -18,6 +18,31 @@
    - API локально (Vercel): `npm run dev` (в корне)
    - Frontend: `npm run dev` (в apps/web)
 
+## Gemini (Google) integration
+
+Если у вас есть платная версия Gemini и вы хотите использовать её вместо OpenAI/OpenRouter:
+
+- В корневом `.env` укажите:
+  - `GEMINI_API_KEY` — ваш секретный ключ для Gemini.
+  - `GEMINI_API_URL` — (опционально) endpoint API, по умолчанию используется `https://api.gemini.google.com/v1`.
+  - `GEMINI_MODEL` — (опционально) модель, например `gemini-1.5-pro`.
+
+- В Vercel добавьте те же переменные (Project → Settings → Environment Variables). Никогда не коммитьте реальные ключи в репозиторий.
+
+Примечание по безопасности:
+
+- Если ключ случайно оказался в `.env` и уже был закоммичен, немедленно отзовите (revoke) ключ в Google Cloud Console и создайте новый.
+- Добавьте `.env` в `.gitignore` (в этом репозитории уже игнорируется).
+- Для очистки истории коммитов используйте `git filter-repo` или BFG, но проще — сгенерировать новый ключ и удалить старый из репозитория как можно быстрее.
+
+Примеры локального запуска:
+
+```cmd
+set GEMINI_API_KEY=ВАШ_НОВЫЙ_КЛЮЧ
+npm run dev
+```
+
+
 ## Деплой на Vercel
 - Импортируйте репозиторий в Vercel.
 - Установите переменные окружения из `.env.example`.
