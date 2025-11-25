@@ -1,4 +1,6 @@
 // Helper to call Gemini (prefer @google/genai SDK, fallback to fetch)
+import { MODEL as FALLBACK_MODEL } from '../config';
+
 export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: number, model?: string }) {
   const envGeminiKey = process.env.GEMINI_API_KEY || '';
   const envGeminiUrl = process.env.GEMINI_API_URL || '';
@@ -80,7 +82,7 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
         const req: any = { model: sdkModel, prompt: { text: prompt } };
         console.log('[genai] SDK request:', { sdkModel, samplePrompt: prompt.slice(0, 120) });
         const p = client.generateText?.(req) || client.generateContent?.(req) || client.generate?.(req);
-        const resp = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('AI timeout')), timeoutMs))]);
+  const resp = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('AI timeout')), timeoutMs))]);
         console.log('[genai] SDK raw response:', resp);
         const text = extractTextFromSdk(resp);
         sdkTried = true;
@@ -111,6 +113,16 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
         const res = await jwtClient.authorize();
         saAccessToken = res?.access_token || null;
         if (saAccessToken) console.log('[genai] minted access token from SA JSON');
+        // Debug: list available models for the project (helps diagnose 404 / billing issues)
+        try {
+          const modelsUrl = 'https://generativelanguage.googleapis.com/v1/models';
+          const mres = await fetch(modelsUrl, { method: 'GET', headers: { Authorization: `Bearer ${saAccessToken}` } });
+          const mtext = await mres.text().catch(()=>'');
+          console.log('[genai] GET /v1/models status', mres.status, mres.statusText);
+          console.log('[genai] GET /v1/models body (raw)', mtext.slice(0,2000));
+        } catch (me) {
+          console.warn('[genai] GET /v1/models failed', me?.message || me);
+        }
       } catch (e) {
         console.warn('[genai] SA token minting failed', e?.message || e);
       }
@@ -197,6 +209,13 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
 
   const err: any = new Error(`Gemini error: no working endpoint (last error: ${lastErr?.message || 'unknown'})`);
   err.status = lastErr?.status || 404;
+  // If everything returned 404, suggest using local fallback model or check billing/API
+  if (lastErr?.status === 404) {
+    console.warn('[genai] All Gemini endpoints returned 404. Suggest falling back to', FALLBACK_MODEL);
+    const ferr: any = new Error(`Gemini endpoints not available (404). Suggest using fallback model: ${FALLBACK_MODEL} or enable Generative API / billing for project.`);
+    ferr.status = 502;
+    throw ferr;
+  }
   throw err;
 }
 
