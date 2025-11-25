@@ -36,6 +36,17 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
 
   // Try SDK first
   try {
+    // If a service account JSON is provided via env, parse and prepare credentials
+    const saJsonRaw = process.env.GEMINI_SA_JSON || '';
+    const saJsonB64 = process.env.GEMINI_SA_B64 || '';
+    let saCredentials: any = null;
+    try {
+      if (saJsonRaw) saCredentials = JSON.parse(saJsonRaw);
+      else if (saJsonB64) saCredentials = JSON.parse(Buffer.from(saJsonB64, 'base64').toString('utf-8'));
+    } catch (e) {
+      // ignore parse errors
+    }
+
     const genai = await import('@google/genai');
     // Prefer explicit client exports that end with 'Client'
     const candidateNames = ['GenerativeServiceClient', 'TextServiceClient', 'GenaiClient', 'GenerativeModelsClient'];
@@ -70,12 +81,21 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
 
     if (ClientCtor) {
       console.log('[genai] SDK client ctor found:', ClientCtor.name || '<anonymous>');
-      const client = new ClientCtor({});
+      // If we have parsed service-account credentials, pass them to the client if supported
+      const clientOpts: any = {};
+      if (saCredentials) {
+        clientOpts.credentials = saCredentials;
+        console.log('[genai] using service account credentials from GEMINI_SA_JSON/GEMINI_SA_B64');
+      }
+      const client = new ClientCtor(clientOpts);
       try {
         const model = opts?.model || process.env.GEMINI_MODEL || 'gemini-1.5-pro';
-        const parent = process.env.GEMINI_PARENT || `models/${model}`;
-        const req: any = { model: parent, prompt: { text: prompt } };
-        console.log('[genai] SDK request:', { parent, samplePrompt: prompt.slice(0, 120) });
+        const parentEnv = process.env.GEMINI_PARENT || '';
+        // If parent provided, the SDK usually expects parent like 'projects/.../locations/...'
+        // and model as 'models/{model}'. Some SDK versions accept `model: `${parent}/models/${model}``
+        const sdkModel = parentEnv ? `${parentEnv.replace(/\/$/, '')}/models/${model}` : `models/${model}`;
+        const req: any = { model: sdkModel, prompt: { text: prompt } };
+        console.log('[genai] SDK request:', { sdkModel, samplePrompt: prompt.slice(0, 120) });
         const p = client.generateText?.(req) || client.generateContent?.(req) || client.generate?.(req);
         const resp = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('AI timeout')), timeoutMs))]);
         console.log('[genai] SDK raw response:', resp);
@@ -96,6 +116,7 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
   // Keep baseUrl without /v1 so we can compose /v1/models/{model}:generate correctly
   const baseUrl = (process.env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
   const model = opts?.model || process.env.GEMINI_MODEL || 'gemini-1.5-pro';
+  const parentEnv = process.env.GEMINI_PARENT || ''; // e.g. "projects/PROJECT/locations/global"
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -104,15 +125,22 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
   const altModels = [
     model,
     'text-bison-001',
-    'models/text-bison-001',
     'chat-bison-001',
   ];
   const candidates: Array<{ path: string; body: any }> = [];
   for (const m of altModels) {
     if (!m) continue;
-    // ensure paths both with and without /v1
+    // model-level endpoints
     candidates.push({ path: `/v1/models/${m}:generate`, body: { prompt: { text: prompt } } });
     candidates.push({ path: `/models/${m}:generate`, body: { prompt: { text: prompt } } });
+    // if user provided GEMINI_PARENT like 'projects/xxx/locations/yyy', try parent-scoped paths
+    if (parentEnv) {
+      const parent = parentEnv.replace(/\/$/, '');
+      // /v1/{parent}/models/{model}:generate
+      candidates.push({ path: `/v1/${parent}/models/${m}:generate`, body: { prompt: { text: prompt } } });
+      // /{parent}/models/{model}:generate
+      candidates.push({ path: `/${parent}/models/${m}:generate`, body: { prompt: { text: prompt } } });
+    }
   }
   // generic compatibility endpoints
   candidates.push({ path: '/v1/completions', body: { model, prompt } });
