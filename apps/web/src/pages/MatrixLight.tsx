@@ -126,7 +126,7 @@ export default function MatrixLight() {
 
   return (
     <Section>
-      <h2>Матрица (DEBUG MODE)</h2>
+      <h2>Матрица</h2>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         
         {isTg && hasTgPicker ? (
@@ -138,7 +138,7 @@ export default function MatrixLight() {
         )}
 
         <Button type="submit" disabled={!d || isLoading} variant="primary" style={{ border: '2px solid red' }}>
-          {isLoading ? 'Думаю...' : '🚀 ТЕСТ ЗАПРОСА'}
+          {isLoading ? 'Думаю...' : 'Рассчитать'}
         </Button>
       </form>
 
@@ -157,7 +157,7 @@ export default function MatrixLight() {
       <div style={{ marginTop: '10px' }}>
   <Button type="button" variant="outline" onClick={async () => {
           // clear saved date both locally and on server if user is known
-          try { localStorage.removeItem('birthDate') } catch (e) {}
+          try { localStorage.removeItem('birthDate'); setD('') } catch (e) {}
           const tg = (window as any).Telegram?.WebApp;
           const userId = tg?.initDataUnsafe?.user?.id?.toString();
           if (userId) {

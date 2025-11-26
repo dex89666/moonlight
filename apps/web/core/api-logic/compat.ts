@@ -6,6 +6,7 @@ import { isValidDateStr } from '../guard.js';
 import { normalizeDateInput } from './utils.js';
 import { pathNumber } from '../numerology.js';
 import { getUser } from '../../data/store.js';
+import { getCachedResult, setCachedResult, incrementQuota, getQuota } from './cache.js';
 
 export async function handleCompat(req: VercelRequest, res: VercelResponse) {
   console.log('[Compat] 🚀 Начало обработки...');
@@ -35,17 +36,23 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
     
     const matrixData = { energies: [p1, p2] };
 
-    if (!u.isPro) {
-      let brief = `Краткая совместимость: энергия ${p1} и ${p2} в основном дополняют друг друга. Совет: обращайте внимание на коммуникацию.`;
-      brief += '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.'
-      return res.json({ analysis: brief, isPro: false, brief: true, briefReason: 'free_quota', matrixData });
+    const cacheKey = `${userId}::${birthDate1}::${birthDate2}`;
+    const cached = await getCachedResult(cacheKey)
+    if (cached) return res.json({ analysis: cached.analysis, isPro: cached.isPro, brief: cached.brief, matrixData, source: 'cache' })
+
+    // decide full vs brief for free users
+    let allowFull = u.isPro
+    if (!allowFull) {
+      const q = await getQuota(userId)
+      if (q < 2) { allowFull = true; await incrementQuota(userId) }
     }
 
     const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
     if (!isGeminiConfigured() || FORCE_CANNED) {
-      const key = `${birthDate1}::${birthDate2}`;
-      const canned = pickStructured(key, COMPAT_RESPONSES as any);
-      return res.json({ analysis: canned.full, isPro: true, brief: false, matrixData, source: 'canned' });
+      const canned = pickStructured(cacheKey, COMPAT_RESPONSES as any);
+      const analysis = allowFull ? canned.full : (canned.brief + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');
+      await setCachedResult(cacheKey, { analysis, isPro: u.isPro, brief: !allowFull }, 24*3600)
+      return res.json({ analysis, isPro: u.isPro, brief: !allowFull, matrixData, source: 'canned' });
     }
 
     const prompt = `
@@ -56,7 +63,9 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
     const text = await generateWithGemini(prompt, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
     if (!text) throw new Error('Empty response from AI');
 
-    return res.json({ analysis: text, isPro: true, brief: false, matrixData });
+    const final = allowFull ? text : (text.split('\n')[0] + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');
+    await setCachedResult(cacheKey, { analysis: final, isPro: u.isPro, brief: !allowFull }, 24*3600)
+    return res.json({ analysis: final, isPro: u.isPro, brief: !allowFull, matrixData });
 
   } catch (error: any) {
     console.error('[Compat] ❌ Ошибка:', error);

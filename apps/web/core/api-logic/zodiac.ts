@@ -47,16 +47,22 @@ export async function handleZodiac(req: VercelRequest, res: VercelResponse) {
       if (raw) { try{ const obj = typeof raw === 'string' ? JSON.parse(raw) : raw; if (obj?.expiry) u.isPro = new Date(obj.expiry) > new Date() } catch { if (typeof raw === 'string') u.isPro = new Date(raw) > new Date() } }
     } catch(e){ console.warn('[Zodiac] kv read failed', e) }
 
-    if (!u.isPro) {
-      let brief = `Краткий астрологический обзор для знака ${sign}: сегодня обратите внимание на настроение и новые возможности.`;
-      brief += '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.'
-      return res.json({ analysis: brief, isPro: false, brief: true, briefReason: 'free_quota' });
+    const cacheKey = `${userId}::zodiac::${sign}`
+    const { getCachedResult, setCachedResult, incrementQuota, getQuota } = await Promise.resolve().then(()=>require('./cache.js'))
+    const cached = await getCachedResult(cacheKey)
+    if (cached) return res.json({ analysis: cached.analysis, isPro: cached.isPro, brief: cached.brief, source: 'cache' })
+
+    let allowFull = u.isPro
+    if (!allowFull) {
+      const q = await getQuota(userId)
+      if (q < 2) { allowFull = true; await incrementQuota(userId) }
     }
 
-    // Use Gemini only
     if (!isGeminiConfigured()) {
       const canned = pickStructured(`${userId}::${sign}`, ZODIAC_RESPONSES as any);
-      return res.json({ analysis: canned.full, isPro: true, brief: false, source: 'canned' });
+      const analysis = allowFull ? canned.full : (canned.brief + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');
+      await setCachedResult(cacheKey, { analysis, isPro: u.isPro, brief: !allowFull }, 24*3600)
+      return res.json({ analysis, isPro: u.isPro, brief: !allowFull, source: 'canned' });
     }
 
     console.log('[Zodiac] 🛰️ Отправляем запрос в Gemini...');

@@ -23,19 +23,25 @@ export async function handleTarot(
       if (raw) { try{ const obj = typeof raw === 'string' ? JSON.parse(raw) : raw; if (obj?.expiry) u.isPro = new Date(obj.expiry) > new Date() } catch { if (typeof raw === 'string') u.isPro = new Date(raw) > new Date() } }
     } catch(e){ console.warn('[tarot] kv read failed', e) }
 
-    // If not PRO - provide a short/basic card (freemium)
-    if (!u.isPro) {
-      let brief = `Карточка дня: Тёплый ветер — сегодня подходящее время для небольших экспериментов. Совет: попробуй сделать маленький шаг в новом направлении.`
-      brief += '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.'
-      return res.json({ analysis: brief, isPro: false, brief: true, briefReason: 'free_quota' })
+    const cacheKey = `${userId}::tarot:today`;
+    // use cache
+    const { getCachedResult, setCachedResult, incrementQuota, getQuota } = await Promise.resolve().then(()=>require('./cache.js'))
+    const cached = await getCachedResult(cacheKey)
+    if (cached) return res.json({ analysis: cached.analysis, isPro: cached.isPro, brief: cached.brief, source: 'cache' })
+
+    let allowFull = u.isPro
+    if (!allowFull) {
+      const q = await getQuota(userId)
+      if (q < 2) { allowFull = true; await incrementQuota(userId) }
     }
 
-  // Use Gemini only: require GEMINI API key
-  const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
-  if (!isGeminiConfigured() || FORCE_CANNED) {
+    const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
+    if (!isGeminiConfigured() || FORCE_CANNED) {
       const canned = pickStructured(userId, TAROT_RESPONSES as any);
-      return res.json({ analysis: canned.full, isPro: true, brief: false, source: 'canned' })
-  }
+      const analysis = allowFull ? canned.full : (canned.brief + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');
+      await setCachedResult(cacheKey, { analysis, isPro: u.isPro, brief: !allowFull }, 24*3600)
+      return res.json({ analysis, isPro: u.isPro, brief: !allowFull, source: 'canned' })
+    }
 
   // --- Use Gemini ---
   // --- БЕЗОПАСНЫЙ ПРОМПТ ДЛЯ МЕТАФОРИЧЕСКИХ КАРТ ---

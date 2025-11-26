@@ -6,6 +6,7 @@ import { normalizeDateInput } from './utils.js';
 import { pathNumber, summaryForPath } from '../numerology.js';
 import { getUser } from '../../data/store.js';
 import { kv } from '../db.js';
+import { getCachedResult, setCachedResult, incrementQuota, getQuota } from './cache.js';
 
 export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
   console.log('[Matrix] 🚀 Начало обработки...');
@@ -71,7 +72,7 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
       traits: s.traits,
     };
 
-    const PRO_PROMPT = `
+  const PRO_PROMPT = `
     Подробный PRO-отчёт.
     Входные данные:
     - Ключевое число: ${p}
@@ -84,20 +85,42 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
 
     const prompt = isPro ? PRO_PROMPT : FREE_PROMPT;
 
-  const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
-  if (!isGeminiConfigured() || FORCE_CANNED) {
-      // deterministic pick based on userId+birthDate
-      const key = `${userId}::${birthDate}`;
-      const canned = pickStructured(key, MATRIX_RESPONSES as any);
-      return res.json({ analysis: isPro ? canned.full : canned.brief, isPro, brief: !isPro, matrixData, source: 'canned' });
+    const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
+
+    const cacheKey = `${userId}::${birthDate}`;
+    // return cached if exists
+    const cached = await getCachedResult(cacheKey)
+    if (cached) {
+      return res.json({ analysis: cached.analysis, isPro: cached.isPro, brief: cached.brief, matrixData, source: 'cache' });
     }
 
-    let text = await generateWithGemini(prompt, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
+    // Decide if non-PRO gets a full result (allow up to 2 free full results per day)
+    let allowFull = isPro
+    if (!allowFull) {
+      const q = await getQuota(userId)
+      if (q < 2) {
+        allowFull = true
+        await incrementQuota(userId)
+      }
+    }
 
+    if (!isGeminiConfigured() || FORCE_CANNED) {
+      const canned = pickStructured(cacheKey, MATRIX_RESPONSES as any);
+      const analysis = allowFull ? canned.full : (canned.brief + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');
+      await setCachedResult(cacheKey, { analysis, isPro: isPro, brief: !allowFull }, 24*3600)
+      return res.json({ analysis, isPro, brief: !allowFull, matrixData, source: 'canned' });
+    }
+
+    // generate with Gemini (or any AI)
+    const text = await generateWithGemini(allowFull ? PRO_PROMPT : FREE_PROMPT, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
     if (!text) throw new Error('Empty response from AI');
 
+    const finalAnalysis = allowFull ? text : (text.split('\n')[0] + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');
+    // cache the result for 24h
+    await setCachedResult(cacheKey, { analysis: finalAnalysis, isPro, brief: !allowFull }, 24*3600)
+
     console.log('[Matrix] ✅ Успех');
-    return res.json({ analysis: text, isPro, brief: !isPro, source: 'ai', matrixData });
+    return res.json({ analysis: finalAnalysis, isPro, brief: !allowFull, source: 'ai', matrixData });
 
   } catch (error: any) {
     console.error('[Matrix] ❌ Ошибка:', error);
