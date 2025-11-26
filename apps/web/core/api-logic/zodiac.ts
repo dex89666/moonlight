@@ -48,7 +48,8 @@ export async function handleZodiac(req: VercelRequest, res: VercelResponse) {
     } catch(e){ console.warn('[Zodiac] kv read failed', e) }
 
     if (!u.isPro) {
-      const brief = `Краткий астрологический обзор для знака ${sign}: сегодня обратите внимание на настроение и новые возможности.`;
+      let brief = `Краткий астрологический обзор для знака ${sign}: сегодня обратите внимание на настроение и новые возможности.`;
+      brief += '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.'
       return res.json({ analysis: brief, isPro: false, brief: true, briefReason: 'free_quota' });
     }
 

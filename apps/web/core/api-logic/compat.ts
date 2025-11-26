@@ -36,7 +36,8 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
     const matrixData = { energies: [p1, p2] };
 
     if (!u.isPro) {
-      const brief = `Краткая совместимость: энергия ${p1} и ${p2} в основном дополняют друг друга. Совет: обращайте внимание на коммуникацию.`;
+      let brief = `Краткая совместимость: энергия ${p1} и ${p2} в основном дополняют друг друга. Совет: обращайте внимание на коммуникацию.`;
+      brief += '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.'
       return res.json({ analysis: brief, isPro: false, brief: true, briefReason: 'free_quota', matrixData });
     }
 

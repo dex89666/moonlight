@@ -25,7 +25,8 @@ export async function handleTarot(
 
     // If not PRO - provide a short/basic card (freemium)
     if (!u.isPro) {
-      const brief = `Карточка дня: Тёплый ветер — сегодня подходящее время для небольших экспериментов. Совет: попробуй сделать маленький шаг в новом направлении.`
+      let brief = `Карточка дня: Тёплый ветер — сегодня подходящее время для небольших экспериментов. Совет: попробуй сделать маленький шаг в новом направлении.`
+      brief += '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.'
       return res.json({ analysis: brief, isPro: false, brief: true, briefReason: 'free_quota' })
     }
 
