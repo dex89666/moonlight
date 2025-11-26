@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
 import { COMPAT_RESPONSES, pickDeterministic } from '../../data/responses.js';
 import { isValidDateStr } from '../guard.js';
+import { normalizeDateInput } from './utils.js';
 import { pathNumber } from '../numerology.js';
 import { getUser } from '../../data/store.js';
 
@@ -11,8 +12,10 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
   
   const body = req.body || {};
-  const { birthDate1, birthDate2, userId = 'guest' } = body;
-  
+  let { birthDate1, birthDate2, userId = 'guest' } = body;
+  birthDate1 = normalizeDateInput(birthDate1);
+  birthDate2 = normalizeDateInput(birthDate2);
+
   if (!birthDate1 || !isValidDateStr(birthDate1) || !birthDate2 || !isValidDateStr(birthDate2)) {
     return res.status(400).send('bad dates');
   }

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
 import { MATRIX_RESPONSES, pickDeterministic } from '../../data/responses.js';
 import { isValidDateStr } from '../guard.js';
+import { normalizeDateInput } from './utils.js';
 import { pathNumber, summaryForPath } from '../numerology.js';
 import { getUser } from '../../data/store.js';
 import { kv } from '../db.js';
@@ -13,6 +14,7 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
 
   const body = req.body || {};
   let { birthDate, userId = 'guest' } = body;
+  birthDate = normalizeDateInput(birthDate);
 
   console.log(`[Matrix] Data: date=${birthDate}, user=${userId}`);
 
