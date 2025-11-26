@@ -18,8 +18,22 @@ export default function ProCTA({ reason }: { reason?: string }) {
     const tg: any = getTelegramWebApp();
 
     if (!tg) {
-      setError('Ошибка: не удалось найти Telegram WebApp. Откройте в Telegram.');
-      return;
+      // Provide a fallback simulate button for testing
+      const ok = window.confirm('Telegram WebApp не найден. Выполнить тестовую симуляцию оплаты? (тестовая среда)')
+      if (!ok) { setError('Ошибка: не удалось найти Telegram WebApp. Откройте в Telegram.'); return }
+      // simulate payment flow by calling /api/payments directly
+      (async ()=>{
+        setIsLoading(true)
+        try {
+          const userId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || prompt('Введите тестовый userId (только для dev)') || 'guest'
+          const birthDate = (() => { try { return localStorage.getItem('birthDate') } catch (e) { return null } })()
+          const res = await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, birthDate }) })
+          if (!res.ok) throw new Error('Ошибка активации тестовой подписки')
+          alert('Тестовая оплата принята — PRO активирован (симуляция). Страница будет перезагружена.')
+          window.location.reload()
+        } catch (e:any) { setError(String(e.message || e)) } finally { setIsLoading(false) }
+      })()
+      return
     }
 
     // ⭐️ НОВОЕ: Мы должны получить ID пользователя СНАЧАЛА

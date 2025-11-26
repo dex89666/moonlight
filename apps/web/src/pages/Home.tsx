@@ -8,10 +8,21 @@ export default function Home() {
   const [showAdmin, setShowAdmin] = useState(false)
   const timerRef = useRef<number | null>(null)
 
-  function handleMouseDown(){
-    timerRef.current = window.setTimeout(()=> setShowAdmin(true), 5000)
+  function startAdminTimer(){
+    if (timerRef.current) return
+    timerRef.current = window.setTimeout(async ()=>{
+      // require login simple prompt
+      const login = window.prompt('Admin login') || ''
+      const pass = window.prompt('Admin password') || ''
+      if (login === 'mavkoj' && pass === '372915') {
+        setShowAdmin(true)
+      } else {
+        alert('Неверные учетные данные')
+      }
+      timerRef.current = null
+    }, 5000)
   }
-  function handleMouseUp(){
+  function clearAdminTimer(){
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
   }
 
@@ -19,16 +30,27 @@ export default function Home() {
     // if Telegram WebApp present, get initData and send to server
     const tg = (window as any).Telegram?.WebApp
     if (!tg) return alert('Telegram WebApp not available')
-    const initData = tg.initData || tg.initDataUnsafe || null
-    if (!initData) return alert('No init data')
+    // build minimal user payload to avoid sending whole WebApp object
+    const user = tg.initDataUnsafe?.user || null
+    const initDataStr = tg.initData || null
+    const payload: any = {}
+    if (initDataStr) payload.initData = initDataStr
+    if (user) {
+      payload.id = user.id
+      payload.username = user.username
+      payload.first_name = user.first_name
+      payload.last_name = user.last_name
+      payload.auth_date = tg.initDataUnsafe?.auth_date || null
+    }
     try {
-      const res = await api.post<any>('/api/telegram-auth', initData)
+      const res = await api.post<any>('/api/telegram-auth', payload)
       if (res && (res as any).ok) alert('Вход выполнен')
+      else alert('Ошибка входа: ' + JSON.stringify(res))
     } catch (e:any){ alert('Ошибка входа: '+(e.message||e)) }
   }
   return (
     <>
-    <div onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+  <div onMouseDown={startAdminTimer} onMouseUp={clearAdminTimer} onMouseLeave={clearAdminTimer} onTouchStart={startAdminTimer} onTouchEnd={clearAdminTimer}>
     <Section>
       <h1>Добро пожаловать</h1>
       <div style={{display:'flex',gap:10,marginBottom:12}}>

@@ -151,7 +151,7 @@ export default function Compatibility() {
       )}
       <div style={{ marginTop: '12px' }}>
         <Button type="button" variant="outline" onClick={async () => {
-          try { localStorage.removeItem('birthDate1'); localStorage.removeItem('birthDate2') } catch (e) {}
+          try { localStorage.removeItem('birthDate1'); localStorage.removeItem('birthDate2'); setD1(''); setD2('') } catch (e) {}
           const userId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString();
           if (userId) await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, action: 'clearDate' }) })
         }}>Очистить даты</Button>
