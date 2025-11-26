@@ -5,4 +5,4 @@ export const MODEL = process.env.MODEL || "mistralai/mistral-7b-instruct:free";
 // Gemini (Google Generative Language) configuration
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 export const GEMINI_PARENT = process.env.GEMINI_PARENT || '';
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-pro';
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';

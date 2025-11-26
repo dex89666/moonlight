@@ -22,10 +22,22 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
 
   const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || opts?.timeoutMs || 8000);
 
-  if (!geminiKey && !saCredentialsTop) {
-    const err: any = new Error('GEMINI_API_KEY or GEMINI_SA_JSON/GEMINI_SA_B64 missing');
-    err.status = 401;
-    throw err;
+  // Early offline/canned fallback: if env forces canned or gemini not configured, return canned
+  const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
+  if (FORCE_CANNED || (!geminiKey && !saCredentialsTop)) {
+    try {
+      // lazy import so runtime without TS imports still works
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { pickDeterministic, MATRIX_RESPONSES } = require('../../data/responses.js');
+      // deterministic key fallback
+      const key = `force-canned::${(new Date()).toISOString().slice(0,10)}`;
+      const canned = pickDeterministic(key, MATRIX_RESPONSES || []);
+      return String(canned || 'Оффлайн — ответ временно недоступен.');
+    } catch (e) {
+      const err: any = new Error('GEMINI not configured and canned fallback failed');
+      err.status = 503;
+      throw err;
+    }
   }
 
   const extractTextFromSdk = (resp: any) => {
@@ -224,3 +236,6 @@ export function isGeminiConfigured() {
   const k = process.env.GEMINI_API_KEY || process.env.GEMINI_API_URL || process.env.GEMINI_SA_JSON || process.env.GEMINI_SA_B64 || '';
   return Boolean(k);
 }
+
+
+

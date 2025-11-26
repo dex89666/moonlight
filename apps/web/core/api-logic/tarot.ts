@@ -24,7 +24,8 @@ export async function handleTarot(
     }
 
   // Use Gemini only: require GEMINI API key
-  if (!isGeminiConfigured()) {
+  const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
+  if (!isGeminiConfigured() || FORCE_CANNED) {
       const canned = pickDeterministic(userId, TAROT_RESPONSES);
       return res.json({ analysis: canned, isPro: true, brief: false, source: 'canned' })
   }
@@ -53,7 +54,8 @@ export async function handleTarot(
     console.error('[tarot] Gemini error:', error);
     const status = error?.status || error?.code || '';
     if (status === 401) {
-      const canned = pickDeterministic(userId, TAROT_RESPONSES);
+      const uid = (req.body && (req.body as any).userId) || 'guest';
+      const canned = pickDeterministic(uid, TAROT_RESPONSES);
       return res.json({ analysis: canned, isPro: true, brief: false, source: 'canned' });
     }
     if ((error?.message || '').includes('timeout')) {

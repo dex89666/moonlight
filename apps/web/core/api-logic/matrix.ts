@@ -82,7 +82,8 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
 
     const prompt = isPro ? PRO_PROMPT : FREE_PROMPT;
 
-    if (!isGeminiConfigured()) {
+  const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
+  if (!isGeminiConfigured() || FORCE_CANNED) {
       // deterministic pick based on userId+birthDate
       const key = `${userId}::${birthDate}`;
       const canned = pickDeterministic(key, MATRIX_RESPONSES);

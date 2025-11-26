@@ -29,7 +29,8 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
       return res.json({ analysis: brief, isPro: false, brief: true, briefReason: 'free_quota', matrixData });
     }
 
-    if (!isGeminiConfigured()) {
+    const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
+    if (!isGeminiConfigured() || FORCE_CANNED) {
       const key = `${birthDate1}::${birthDate2}`;
       const canned = pickDeterministic(key, COMPAT_RESPONSES);
       return res.json({ analysis: canned, isPro: true, brief: false, matrixData, source: 'canned' });
