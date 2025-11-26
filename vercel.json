@@ -1,0 +1,6 @@
+{
+  "root": "apps/web",
+  "build": {
+    "env": {}
+  }
+}
