@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
-import { MATRIX_RESPONSES, pickDeterministic } from '../../data/responses.js';
+import { MATRIX_RESPONSES, pickStructured } from '../../data/responses.js';
 import { isValidDateStr } from '../guard.js';
 import { normalizeDateInput } from './utils.js';
 import { pathNumber, summaryForPath } from '../numerology.js';
@@ -88,8 +88,8 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
   if (!isGeminiConfigured() || FORCE_CANNED) {
       // deterministic pick based on userId+birthDate
       const key = `${userId}::${birthDate}`;
-      const canned = pickDeterministic(key, MATRIX_RESPONSES);
-      return res.json({ analysis: canned, isPro, brief: !isPro, matrixData, source: 'canned' });
+      const canned = pickStructured(key, MATRIX_RESPONSES as any);
+      return res.json({ analysis: isPro ? canned.full : canned.brief, isPro, brief: !isPro, matrixData, source: 'canned' });
     }
 
     let text = await generateWithGemini(prompt, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
@@ -113,16 +113,16 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
 
     const status = error?.status || error?.code || (error?.error && error.error.code);
     if (status === 401) {
-    const key = `${userId}::${birthDate}`;
-    const canned = pickDeterministic(key, MATRIX_RESPONSES);
-    return res.json({ analysis: canned, isPro, brief: !isPro, matrixData, source: 'canned' });
+      const key = `${userId}::${birthDate}`;
+      const canned = pickStructured(key, MATRIX_RESPONSES as any);
+      return res.json({ analysis: isPro ? canned.full : canned.brief, isPro, brief: !isPro, matrixData, source: 'canned' });
     }
 
-    if ((error?.message || '').includes('getaddrinfo') || error?.code === 'ENOTFOUND' || error?.code === 'EAI_AGAIN') {
-  const key = `${userId}::${birthDate}`;
-  const canned = pickDeterministic(key, MATRIX_RESPONSES);
-  return res.json({ analysis: canned, isPro, brief: !isPro, matrixData, source: 'canned' });
-    }
+      if ((error?.message || '').includes('getaddrinfo') || error?.code === 'ENOTFOUND' || error?.code === 'EAI_AGAIN') {
+        const key = `${userId}::${birthDate}`;
+        const canned = pickStructured(key, MATRIX_RESPONSES as any);
+        return res.json({ analysis: isPro ? canned.full : canned.brief, isPro, brief: !isPro, matrixData, source: 'canned' });
+      }
 
     return res.status(500).send(error.message || 'Internal Error');
   }

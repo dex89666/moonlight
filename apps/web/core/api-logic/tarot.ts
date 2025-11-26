@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
-import { TAROT_RESPONSES, pickDeterministic } from '../../data/responses.js';
+import { TAROT_RESPONSES, pickStructured } from '../../data/responses.js';
+import { kv } from '../db.js';
 // ⭐️ ИСПРАВЛЕНО: Путь стал ../../data/
 import { getUser } from '../../data/store.js';
 
@@ -16,6 +17,11 @@ export async function handleTarot(
   try {
     const { userId = 'guest' } = req.body as { userId?: string }
     const u = getUser(userId)
+    // derive PRO from KV
+    try{
+      const raw = await kv.get(`sub:${userId}`)
+      if (raw) { try{ const obj = typeof raw === 'string' ? JSON.parse(raw) : raw; if (obj?.expiry) u.isPro = new Date(obj.expiry) > new Date() } catch { if (typeof raw === 'string') u.isPro = new Date(raw) > new Date() } }
+    } catch(e){ console.warn('[tarot] kv read failed', e) }
 
     // If not PRO - provide a short/basic card (freemium)
     if (!u.isPro) {
@@ -26,8 +32,8 @@ export async function handleTarot(
   // Use Gemini only: require GEMINI API key
   const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
   if (!isGeminiConfigured() || FORCE_CANNED) {
-      const canned = pickDeterministic(userId, TAROT_RESPONSES);
-      return res.json({ analysis: canned, isPro: true, brief: false, source: 'canned' })
+      const canned = pickStructured(userId, TAROT_RESPONSES as any);
+      return res.json({ analysis: canned.full, isPro: true, brief: false, source: 'canned' })
   }
 
   // --- Use Gemini ---
@@ -55,8 +61,8 @@ export async function handleTarot(
     const status = error?.status || error?.code || '';
     if (status === 401) {
       const uid = (req.body && (req.body as any).userId) || 'guest';
-      const canned = pickDeterministic(uid, TAROT_RESPONSES);
-      return res.json({ analysis: canned, isPro: true, brief: false, source: 'canned' });
+      const canned = pickStructured(uid, TAROT_RESPONSES as any);
+      return res.json({ analysis: canned.full, isPro: true, brief: false, source: 'canned' });
     }
     if ((error?.message || '').includes('timeout')) {
       return res.json({ analysis: `AI timeout — попробуйте ещё раз.`, isPro: true, brief: false, source: 'stub' });

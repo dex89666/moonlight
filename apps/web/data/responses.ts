@@ -28,3 +28,11 @@ export function pickDeterministic(key:string, arr:string[]){
 export function pickRandom(arr:string[]){
   return arr[Math.floor(Math.random()*arr.length)];
 }
+
+export function pickStructured(key:string, arr:string[]){
+  const txt = pickDeterministic(key, arr)
+  // brief: first sentence or first 120 chars
+  const firstSentence = (txt.split('. ')[0] || txt).trim()
+  const brief = firstSentence.length > 120 ? firstSentence.slice(0,120) + '...' : firstSentence
+  return { brief, full: txt }
+}

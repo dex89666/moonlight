@@ -2,7 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
 import { isValidSign } from '../guard.js';
 import { getUser } from '../../data/store.js';
-import { ZODIAC_RESPONSES, pickDeterministic } from '../../data/responses.js';
+import { ZODIAC_RESPONSES, pickStructured } from '../../data/responses.js';
+import { kv } from '../db.js';
 
 const SIGN_MAP: Record<string, string> = {
   'oven': 'aries',
@@ -41,6 +42,10 @@ export async function handleZodiac(req: VercelRequest, res: VercelResponse) {
 
   try {
     const u = getUser(userId);
+    try{
+      const raw = await kv.get(`sub:${userId}`)
+      if (raw) { try{ const obj = typeof raw === 'string' ? JSON.parse(raw) : raw; if (obj?.expiry) u.isPro = new Date(obj.expiry) > new Date() } catch { if (typeof raw === 'string') u.isPro = new Date(raw) > new Date() } }
+    } catch(e){ console.warn('[Zodiac] kv read failed', e) }
 
     if (!u.isPro) {
       const brief = `Краткий астрологический обзор для знака ${sign}: сегодня обратите внимание на настроение и новые возможности.`;
@@ -49,8 +54,8 @@ export async function handleZodiac(req: VercelRequest, res: VercelResponse) {
 
     // Use Gemini only
     if (!isGeminiConfigured()) {
-      const canned = pickDeterministic(`${userId}::${sign}`, ZODIAC_RESPONSES);
-      return res.json({ analysis: canned, isPro: true, brief: false, source: 'canned' });
+      const canned = pickStructured(`${userId}::${sign}`, ZODIAC_RESPONSES as any);
+      return res.json({ analysis: canned.full, isPro: true, brief: false, source: 'canned' });
     }
 
     console.log('[Zodiac] 🛰️ Отправляем запрос в Gemini...');
@@ -69,8 +74,8 @@ export async function handleZodiac(req: VercelRequest, res: VercelResponse) {
     console.error('[Zodiac] ❌ Ошибка:', error);
     const status = error?.status || error?.code || '';
     if (status === 401) {
-      const canned = pickDeterministic(`${userId}::${sign}`, ZODIAC_RESPONSES);
-      return res.json({ analysis: canned, isPro: true, brief: false, source: 'canned' });
+      const canned = pickStructured(`${userId}::${sign}`, ZODIAC_RESPONSES as any);
+      return res.json({ analysis: canned.full, isPro: true, brief: false, source: 'canned' });
     }
     if ((error?.message || '').includes('timeout')) {
       return res.json({ analysis: `AI timeout — попробуйте ещё раз.`, isPro: true, brief: false, source: 'stub' });

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, isGeminiConfigured } from './genai.js';
-import { COMPAT_RESPONSES, pickDeterministic } from '../../data/responses.js';
+import { COMPAT_RESPONSES, pickStructured } from '../../data/responses.js';
+import { kv } from '../db.js';
 import { isValidDateStr } from '../guard.js';
 import { normalizeDateInput } from './utils.js';
 import { pathNumber } from '../numerology.js';
@@ -22,6 +23,13 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
 
   try {
     const u = getUser(userId);
+    // determine PRO from KV
+    try{
+      const raw = await kv.get(`sub:${userId}`)
+      if (raw) {
+        try{ const obj = typeof raw === 'string' ? JSON.parse(raw) : raw; if (obj?.expiry) u.isPro = new Date(obj.expiry) > new Date() } catch { if (typeof raw === 'string') u.isPro = new Date(raw) > new Date() }
+      }
+    } catch(e){ console.warn('[Compat] KV read failed', e) }
     const p1 = pathNumber(birthDate1);
     const p2 = pathNumber(birthDate2);
     
@@ -35,8 +43,8 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
     const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
     if (!isGeminiConfigured() || FORCE_CANNED) {
       const key = `${birthDate1}::${birthDate2}`;
-      const canned = pickDeterministic(key, COMPAT_RESPONSES);
-      return res.json({ analysis: canned, isPro: true, brief: false, matrixData, source: 'canned' });
+      const canned = pickStructured(key, COMPAT_RESPONSES as any);
+      return res.json({ analysis: canned.full, isPro: true, brief: false, matrixData, source: 'canned' });
     }
 
     const prompt = `

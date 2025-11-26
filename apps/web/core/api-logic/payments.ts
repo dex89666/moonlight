@@ -9,6 +9,10 @@ export async function handlePayments(req: VercelRequest, res: VercelResponse) {
 
   const key = `sub:${userId}`
   try {
+    if (action === 'clear' ) {
+      await kv.del(key)
+      return res.status(200).json({ success: true })
+    }
     if (action === 'clearDate') {
       const raw = await kv.get(key)
       if (raw) {
@@ -21,6 +25,16 @@ export async function handlePayments(req: VercelRequest, res: VercelResponse) {
         }
       }
       return res.status(200).json({ success: true })
+    }
+
+    if (action === 'grant') {
+      const expiryDate = new Date()
+      expiryDate.setDate(expiryDate.getDate() + 30)
+      const expiryDateISO = expiryDate.toISOString()
+      const payload: any = { expiry: expiryDateISO }
+      if (birthDate) payload.birthDate = birthDate
+      await kv.set(key, JSON.stringify(payload))
+      return res.status(200).json({ success: true, expiry: expiryDateISO })
     }
 
     const expiryDate = new Date()
