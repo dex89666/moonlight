@@ -107,7 +107,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       verified
     }
 
-    await kv.set(key, JSON.stringify(userObj))
+  // debug: log received user and id
+  console.log('[telegram-auth] saving user', { id, username, first_name, last_name })
+  await kv.set(key, JSON.stringify(userObj))
+  console.log('[telegram-auth] kv.set user done', key)
 
     // maintain users index
     const listKey = 'users:list'
@@ -117,6 +120,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!list.includes(id)) {
       list.push(id)
       await kv.set(listKey, JSON.stringify(list))
+      console.log('[telegram-auth] users:list updated', listKey, list.length)
+    } else {
+      console.log('[telegram-auth] users:list already contains id')
     }
 
     // return subscription status if any
