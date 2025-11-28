@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 
 export default function Home() {
   const [showAdmin, setShowAdmin] = useState(false)
+  const [currentUser, setCurrentUser] = useState<any>(() => { try { return JSON.parse(localStorage.getItem('currentUser')||'null') } catch { return null } })
   const timerRef = useRef<number | null>(null)
     const [tapCount, setTapCount] = useState(0)
 
@@ -68,8 +69,11 @@ export default function Home() {
   }
     try {
       const res = await api.post<any>('/api/telegram-auth', payload)
-      if (res && (res as any).ok) alert('Вход выполнен')
-      else alert('Ошибка входа: ' + JSON.stringify(res))
+      if (res && (res as any).ok) {
+        try { localStorage.setItem('currentUser', JSON.stringify(res.user || null)) } catch {}
+        setCurrentUser(res.user || null)
+        alert('Вход выполнен')
+      } else alert('Ошибка входа: ' + JSON.stringify(res))
     } catch (e:any){ alert('Ошибка входа: '+(e.message||e)) }
   }
   return (
@@ -78,7 +82,14 @@ export default function Home() {
     <Section>
       <h1>Добро пожаловать</h1>
       <div style={{display:'flex',gap:10,marginBottom:12}}>
-        <Button onClick={handleTelegramLogin}>Войти через Telegram</Button>
+        {!currentUser ? (
+          <Button onClick={handleTelegramLogin}>Войти через Telegram</Button>
+        ) : (
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <div>Вход как <strong>{currentUser.username || currentUser.id}</strong></div>
+            <Button onClick={()=>{ try { localStorage.removeItem('currentUser') } catch{}; setCurrentUser(null) }}>Выйти</Button>
+          </div>
+        )}
       </div>
       <p>Выберите инструмент для анализа:</p>
       
