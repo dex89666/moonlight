@@ -7,12 +7,31 @@ export default function AdminPage(){
 
   async function refresh(){
     try{
-      const r = await api.get<any>('/api/admin/users')
+  const r = await api.adminGet<any>('/api/admin/users')
       setUsers(r.users || [])
     }catch(e:any){ setErr(e.message||String(e)) }
   }
 
   useEffect(()=>{ refresh() },[])
+
+  // if 401 returned, prompt for admin credentials
+  useEffect(()=>{
+    const tryAuth = async () => {
+      try { await refresh(); } catch (e:any) {
+        const msg = (e.message||'')
+        if (msg.includes('Unauthorized') || msg.includes('WWW-Authenticate')) {
+          const u = window.prompt('Admin user') || ''
+          const p = window.prompt('Admin pass') || ''
+          if (u && p) {
+            const token = btoa(u+':'+p)
+            try { localStorage.setItem('admin:basic', token) } catch {}
+            await refresh()
+          }
+        }
+      }
+    }
+    tryAuth()
+  },[])
 
   return (
     <div>

@@ -55,12 +55,20 @@ export const api = {
     return await res.json() as T;
   },
   
-  async get<T>(url: string): Promise<T> {
+  async get<T>(url: string, opts?: { headers?: Record<string,string> }): Promise<T> {
     const fullUrl = `${API_BASE_URL}${url}`;
-    const res = await fetch(fullUrl);
+    const res = await fetch(fullUrl, { headers: opts?.headers });
     if (!res.ok) {
       throw new Error(await res.text());
     }
     return (await res.json()) as T;
   },
+
+  // admin-specific GET which will include Basic auth stored in localStorage under 'admin:basic'
+  async adminGet<T>(url: string): Promise<T> {
+    const token = (() => { try { return localStorage.getItem('admin:basic') } catch { return null } })()
+    const headers: Record<string,string> = {}
+    if (token) headers['Authorization'] = `Basic ${token}`
+    return this.get<T>(url, { headers })
+  }
 };

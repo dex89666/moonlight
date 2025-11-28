@@ -4,6 +4,19 @@ import { kv } from '../../core/db.js'
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).send('Method Not Allowed')
 
+  // simple Basic auth: ADMIN_USER / ADMIN_PASS from env. If not set, allow access (dev convenience)
+  const ADMIN_USER = process.env.ADMIN_USER || ''
+  const ADMIN_PASS = process.env.ADMIN_PASS || ''
+  if (ADMIN_USER && ADMIN_PASS) {
+    const auth = req.headers.authorization || ''
+    if (!auth.startsWith('Basic ')) return res.status(401).setHeader('WWW-Authenticate', 'Basic realm="Admin"').send('Unauthorized')
+    const b = auth.slice('Basic '.length)
+    let decoded = ''
+    try { decoded = Buffer.from(b, 'base64').toString('utf8') } catch { decoded = '' }
+    const [u, p] = decoded.split(':')
+    if (u !== ADMIN_USER || p !== ADMIN_PASS) return res.status(401).setHeader('WWW-Authenticate', 'Basic realm="Admin"').send('Unauthorized')
+  }
+
   try {
     const raw = await kv.get('users:list')
     const list: string[] = raw ? JSON.parse(String(raw)) : []
