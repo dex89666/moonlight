@@ -1,5 +1,5 @@
 import { Button, Section } from '../components/UI';
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import AdminPage from './admin'
 import { api } from '../api/client'
 import { Link } from 'react-router-dom';
@@ -7,11 +7,9 @@ import { Link } from 'react-router-dom';
 export default function Home() {
   const [showAdmin, setShowAdmin] = useState(false)
   const timerRef = useRef<number | null>(null)
+    const [tapCount, setTapCount] = useState(0)
 
-  function startAdminTimer(){
-    if (timerRef.current) return
-    timerRef.current = window.setTimeout(async ()=>{
-      // require login simple prompt
+    function attemptAdminLogin() {
       const login = window.prompt('Admin login') || ''
       const pass = window.prompt('Admin password') || ''
       if (login === 'mavkoj' && pass === '372915') {
@@ -19,6 +17,12 @@ export default function Home() {
       } else {
         alert('Неверные учетные данные')
       }
+    }
+
+  function startAdminTimer(){
+    if (timerRef.current) return
+    timerRef.current = window.setTimeout(()=>{
+      attemptAdminLogin()
       timerRef.current = null
     }, 5000)
   }
@@ -26,22 +30,42 @@ export default function Home() {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
   }
 
+    // taps logic: 5 taps within 3s -> prompt login
+    useEffect(() => {
+      if (tapCount <= 0) return
+      const t = window.setTimeout(() => setTapCount(0), 3000)
+      return () => clearTimeout(t)
+    }, [tapCount])
+
+    function onTap() {
+      setTapCount(c => {
+        const next = c + 1
+        if (next >= 5) {
+          setTapCount(0)
+          attemptAdminLogin()
+          return 0
+        }
+        return next
+      })
+    }
+
   async function handleTelegramLogin() {
     // if Telegram WebApp present, get initData and send to server
     const tg = (window as any).Telegram?.WebApp
     if (!tg) return alert('Telegram WebApp not available')
-    // build minimal user payload to avoid sending whole WebApp object
-    const user = tg.initDataUnsafe?.user || null
-    const initDataStr = tg.initData || null
-    const payload: any = {}
-    if (initDataStr) payload.initData = initDataStr
-    if (user) {
-      payload.id = user.id
-      payload.username = user.username
-      payload.first_name = user.first_name
-      payload.last_name = user.last_name
-      payload.auth_date = tg.initDataUnsafe?.auth_date || null
-    }
+  // send plain JSON-friendly payload: initData string + explicit user object (extracted from initDataUnsafe)
+  const unsafe = tg.initDataUnsafe || {}
+  const u = unsafe?.user || null
+  const payload: any = {
+    initData: tg.initData || null,
+    user: u ? {
+      id: u.id,
+      username: u.username,
+      first_name: u.first_name || u.firstName || null,
+      last_name: u.last_name || u.lastName || null,
+      auth_date: unsafe?.auth_date || u?.auth_date || null
+    } : null
+  }
     try {
       const res = await api.post<any>('/api/telegram-auth', payload)
       if (res && (res as any).ok) alert('Вход выполнен')
@@ -50,7 +74,7 @@ export default function Home() {
   }
   return (
     <>
-  <div onMouseDown={startAdminTimer} onMouseUp={clearAdminTimer} onMouseLeave={clearAdminTimer} onTouchStart={startAdminTimer} onTouchEnd={clearAdminTimer}>
+  <div onClick={onTap} onMouseDown={startAdminTimer} onMouseUp={clearAdminTimer} onMouseLeave={clearAdminTimer} onTouchStart={startAdminTimer} onTouchEnd={clearAdminTimer}>
     <Section>
       <h1>Добро пожаловать</h1>
       <div style={{display:'flex',gap:10,marginBottom:12}}>

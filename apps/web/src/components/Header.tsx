@@ -20,10 +20,31 @@ export default function Header() {
     try { window.dispatchEvent(new CustomEvent('cosmos:intensity', { detail: intensity })) } catch {}
   }, [intensity])
 
+  // track quick taps on brand to open admin
+  const [tapCount, setTapCount] = useState(0)
+  useEffect(() => {
+    if (tapCount <= 0) return
+    const t = setTimeout(() => setTapCount(0), 3000)
+    return () => clearTimeout(t)
+  }, [tapCount])
+
+  const onBrandClick = () => {
+    setTapCount(c => {
+      const next = c + 1
+      try { localStorage.setItem('brand:tap', String(next)) } catch {}
+      if (next >= 5) {
+        // reset and navigate to admin
+        try { localStorage.setItem('brand:tap', '0') } catch {}
+        window.location.href = '/admin'
+      }
+      return next >= 5 ? 0 : next
+    })
+  }
+
   return (
     <header className="header">
       <div className="container row">
-        <div className="brand">Илона</div>
+        <div className="brand" role="button" tabIndex={0} onClick={onBrandClick} onKeyDown={(e) => { if (e.key === 'Enter') onBrandClick() }}>Илона</div>
         <nav style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button className="btn btn--ghost" onClick={() => setEnabled(v => !v)} aria-label="Toggle background effects">
