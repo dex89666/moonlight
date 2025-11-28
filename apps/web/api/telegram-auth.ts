@@ -10,9 +10,17 @@ function parseInitDataString(s: string) {
   for (const p of parts) {
     const [k, v] = p.split('=')
     if (!k) continue
-    obj[k] = decodeURIComponent(v || '')
+    // replace plus with space then decode
+    obj[k] = decodeURIComponent((v || '').replace(/\+/g, ' '))
   }
   return obj
+}
+
+function tryParseField(maybeJson: string, field: string) {
+  try {
+    const obj = typeof maybeJson === 'string' ? JSON.parse(maybeJson) : maybeJson
+    return obj && obj[field] != null ? String(obj[field]) : null
+  } catch { return null }
 }
 
 function verifyTelegramAuth(data: Record<string,string>, botToken: string) {
@@ -38,46 +46,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // payload may be a raw initData string (from WebApp.initData) or an object (initDataUnsafe)
-    let dataObj: Record<string,string> | null = null
+    // payload may be:
+    // - a raw initData string
+    // - an object with { initData: string }
+    // - an object with { initDataUnsafe: { user: { ... } } }
+    // - an object with { user: { ... } }
     let verified = false
 
+    // parse initData string if present
+    let parsedFromString: Record<string,string> | null = null
     if (typeof payload === 'string') {
-      dataObj = parseInitDataString(payload)
-    } else if (payload && typeof payload === 'object') {
-      // if object contains initData as string
-      if (typeof (payload as any).initData === 'string') {
-        dataObj = parseInitDataString((payload as any).initData)
-      } else {
-        // convert simple object fields to strings
-        dataObj = {}
-        for (const k of Object.keys(payload)) {
-          dataObj[k] = payload[k] == null ? '' : String((payload as any)[k])
-        }
+      parsedFromString = parseInitDataString(payload)
+    } else if (payload && typeof payload === 'object' && typeof (payload as any).initData === 'string') {
+      parsedFromString = parseInitDataString((payload as any).initData)
+    }
+
+    // extract unsafe and user objects if present
+    const unsafeObj = payload && typeof payload === 'object' && (payload as any).initDataUnsafe ? (payload as any).initDataUnsafe : null
+    const userObjFromPayload = payload && typeof payload === 'object' && (payload as any).user ? (payload as any).user : null
+
+    // combined object: start from parsedFromString, overlay unsafe, then overlay userObjFromPayload, then top-level simple fields
+    const combined: Record<string, any> = {}
+    if (parsedFromString) Object.assign(combined, parsedFromString)
+    if (unsafeObj && typeof unsafeObj === 'object') Object.assign(combined, unsafeObj)
+    if (userObjFromPayload && typeof userObjFromPayload === 'object') Object.assign(combined, userObjFromPayload)
+    if (payload && typeof payload === 'object') {
+      for (const k of Object.keys(payload)) {
+        if (k === 'initData' || k === 'initDataUnsafe' || k === 'user') continue
+        const v = (payload as any)[k]
+        if (v == null) continue
+        if (combined[k] == null) combined[k] = v
       }
     }
 
-    if (dataObj && botToken) {
-      try {
-        verified = verifyTelegramAuth(dataObj, botToken)
-      } catch (e) {
-        console.warn('[telegram-auth] verify failed', e)
-      }
+    // run verification using parsedFromString if available and botToken
+    if (parsedFromString && botToken) {
+      try { verified = verifyTelegramAuth(parsedFromString, botToken) } catch (e) { console.warn('[telegram-auth] verify failed', e) }
     }
 
-    // if dataObj missing, bail
-    if (!dataObj) return res.status(400).json({ error: 'No initData provided' })
+    // extract id
+    let id = ''
+    if (combined.id) id = String(combined.id)
+    else if (combined.user_id) id = String(combined.user_id)
+    else if (combined.user && (combined.user.id || combined.user.user_id)) id = String(combined.user.id || combined.user.user_id)
+    else if ((payload as any).id) id = String((payload as any).id)
 
-    const id = String(dataObj.id || dataObj.user_id || '')
     if (!id) return res.status(400).json({ error: 'Missing id' })
 
     const key = `user:${id}`
+    const username = combined.username || null
+    const first_name = combined.first_name || combined.firstName || null
+    const last_name = combined.last_name || combined.lastName || null
+    const auth_date_raw = combined.auth_date || null
     const userObj = {
       id,
-      username: dataObj.username || null,
-      first_name: dataObj.first_name || dataObj.firstName || null,
-      last_name: dataObj.last_name || dataObj.lastName || null,
-      auth_date: dataObj.auth_date ? new Date(Number(dataObj.auth_date) * 1000).toISOString() : new Date().toISOString(),
+      username,
+      first_name,
+      last_name,
+      auth_date: auth_date_raw ? new Date(Number(auth_date_raw) * 1000).toISOString() : new Date().toISOString(),
       verified
     }
 
