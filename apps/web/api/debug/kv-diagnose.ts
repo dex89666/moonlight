@@ -161,5 +161,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     restFetch = { error: String(e?.message || e) }
   }
 
-  return res.json({ ok: true, env, inspected, opts: { url: !!opts.url, token: !!opts.token, namespace: !!opts.namespace }, createClientOk, createClientError, kvTestOk, kvTestError, restFetch })
+  // sanitize attempts for response: keep ok flag and first 200 chars of error/stack
+  const sanitizedAttempts: Record<string, any> = {}
+  for (const k of Object.keys(attempts)) {
+    sanitizedAttempts[k] = {
+      ok: attempts[k].ok,
+      error: attempts[k].error ? String(attempts[k].error).slice(0, 200) : undefined,
+      stack: attempts[k].stack ? String(attempts[k].stack).split('\n').slice(0, 3).join('\n') : undefined
+    }
+  }
+
+  return res.json({ ok: true, env, inspected, opts: { url: !!opts.url, token: !!opts.token, namespace: !!opts.namespace }, createClientOk, createClientError, kvTestOk, kvTestError, restFetch, attempts: sanitizedAttempts })
 }
