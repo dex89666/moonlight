@@ -151,6 +151,75 @@ if (hasKvEnv()) {
   }
 }
 
+// Wrap kv with proxy that falls back to REST calls for individual ops when underlying client fails
+function makeProxy(client: any, restBase?: string, restToken?: string) {
+  const base = restBase ? restBase.replace(/\/$/, '') : undefined
+  const token = restToken
+  return {
+    async get(key: string) {
+      try {
+        return await client.get(key)
+      } catch (e: any) {
+        const msg = String(e?.message || e)
+        if (base && token && (msg.includes('/pipeline') || msg.includes('Invalid URL') || msg.includes('ERR_INVALID_URL'))) {
+          try {
+            const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
+            const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+            if (!r.ok) return null
+            const txt = await r.text()
+            return txt === '' ? null : txt
+          } catch (er) {
+            console.warn('[DB] REST fallback get failed', String(er))
+            return null
+          }
+        }
+        throw e
+      }
+    },
+    async set(key: string, value: string) {
+      try {
+        return await client.set(key, value)
+      } catch (e: any) {
+        const msg = String(e?.message || e)
+        if (base && token && (msg.includes('/pipeline') || msg.includes('Invalid URL') || msg.includes('ERR_INVALID_URL'))) {
+          try {
+            const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
+            const r = await fetch(url, { method: 'PUT', body: String(value), headers: { Authorization: `Bearer ${token}` } })
+            return r.ok
+          } catch (er) {
+            console.warn('[DB] REST fallback set failed', String(er))
+            return false
+          }
+        }
+        throw e
+      }
+    },
+    async del(key: string) {
+      try {
+        return await client.del(key)
+      } catch (e: any) {
+        const msg = String(e?.message || e)
+        if (base && token && (msg.includes('/pipeline') || msg.includes('Invalid URL') || msg.includes('ERR_INVALID_URL'))) {
+          try {
+            const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
+            const r = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+            return r.ok
+          } catch (er) {
+            console.warn('[DB] REST fallback del failed', String(er))
+            return false
+          }
+        }
+        throw e
+      }
+    }
+  }
+}
+
+// If we built a REST-only client earlier, wrap it as-is. If we built an upstash client, wrap it and pass REST creds for fallback.
+const restBase = process.env.VERCEL_KV_REST_URL || process.env.KV_REST_API_URL || ''
+const restToken = process.env.VERCEL_KV_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || ''
+kv = makeProxy(kv, restBase || undefined, restToken || undefined)
+
 export { kv }
 
 export async function setSubscription(userId: string, expiryIso: string) {
