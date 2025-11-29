@@ -17,21 +17,26 @@ function hasKvEnv() {
     'KV_REST_API_NAMESPACE',
     'KV_REST_API_URL'
   ]
-  return keys.some(k => !!process.env[k])
+  return keys.some(k => typeof process.env[k] === 'string' && process.env[k]!.trim() !== '')
 }
 
 let kv: any
 // Normalize common alternative env names to the names expected by @vercel/kv
 function normalizeKvEnv() {
-  if (!process.env.VERCEL_KV_REST_URL) {
-    process.env.VERCEL_KV_REST_URL = process.env.KV_REST_API_URL || process.env.KV_REST_URL || ''
+  const pick = (a?: string, b?: string) => {
+    if (a && a.trim() !== '') return a.trim()
+    if (b && b.trim() !== '') return b.trim()
+    return undefined
   }
-  if (!process.env.VERCEL_KV_REST_TOKEN) {
-    process.env.VERCEL_KV_REST_TOKEN = process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || process.env.KV_REST_TOKEN || ''
-  }
-  if (!process.env.VERCEL_KV_NAMESPACE) {
-    process.env.VERCEL_KV_NAMESPACE = process.env.KV_REST_API_NAMESPACE || process.env.KV_NAMESPACE || ''
-  }
+
+  const url = pick(process.env.VERCEL_KV_REST_URL, process.env.KV_REST_API_URL || process.env.KV_REST_URL)
+  if (url) process.env.VERCEL_KV_REST_URL = url
+
+  const token = pick(process.env.VERCEL_KV_REST_TOKEN, process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || process.env.KV_REST_TOKEN)
+  if (token) process.env.VERCEL_KV_REST_TOKEN = token
+
+  const ns = pick(process.env.VERCEL_KV_NAMESPACE, process.env.KV_REST_API_NAMESPACE || process.env.KV_NAMESPACE)
+  if (ns) process.env.VERCEL_KV_NAMESPACE = ns
 }
 
 if (hasKvEnv()) {
