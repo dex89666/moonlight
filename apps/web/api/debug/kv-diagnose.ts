@@ -42,34 +42,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let createClientError: string | null = null
   let kvTestOk = false
   let kvTestError: string | null = null
+  const attempts: Record<string, { ok: boolean; error?: string | null; stack?: string | null }> = {}
   let restFetch: { ok?: boolean; status?: number | null; location?: string | null; error?: string | null; origin?: string; pathname?: string } = {}
 
   try {
     // dynamic import to avoid import-time errors
     const { createClient } = await import('@vercel/kv') as any
     try {
-      // try default constructor first
-      let client: any = null
-      try { client = createClient() } catch (e) {
-        // try with explicit options
+      // attempt 1: default createClient()
+      try {
+        const c1 = createClient()
+        attempts['default'] = { ok: false }
+        try {
+          const k = '__diag_1'
+          await c1.set(k, '1')
+          const g = await c1.get(k)
+          await c1.del(k)
+          attempts['default'].ok = String(g) === '1'
+          if (!attempts['default'].ok) attempts['default'].error = `got:${String(g)}`
+        } catch (e:any) {
+          attempts['default'].error = String(e?.message || e)
+          attempts['default'].stack = String(e?.stack || null)
+        }
+      } catch (e:any) {
+        attempts['default'] = { ok: false, error: String(e?.message || e), stack: String(e?.stack || null) }
+      }
+
+      // attempt 2: explicit options from normalized opts
+      try {
         const cfg: any = {}
         if (opts.url) cfg.url = opts.url
         if (opts.token) cfg.token = opts.token
         if (opts.namespace) cfg.namespace = opts.namespace
-        client = createClient(cfg)
-      }
-      createClientOk = true
-
-      // perform small KV roundtrip
-      try {
-        const key = '__diag_kv_test__'
-        await client.set(key, '1')
-        const got = await client.get(key)
-        await client.del(key)
-        kvTestOk = String(got) === '1'
-        if (!kvTestOk) kvTestError = `unexpected get result: ${String(got)}`
+        const c2 = Object.keys(cfg).length ? createClient(cfg) : createClient()
+        attempts['explicit_normalized'] = { ok: false }
+        try {
+          const k = '__diag_2'
+          await c2.set(k, '1')
+          const g = await c2.get(k)
+          await c2.del(k)
+          attempts['explicit_normalized'].ok = String(g) === '1'
+          if (!attempts['explicit_normalized'].ok) attempts['explicit_normalized'].error = `got:${String(g)}`
+        } catch (e:any) {
+          attempts['explicit_normalized'].error = String(e?.message || e)
+          attempts['explicit_normalized'].stack = String(e?.stack || null)
+        }
       } catch (e:any) {
-        kvTestError = String(e?.message || e)
+        attempts['explicit_normalized'] = { ok: false, error: String(e?.message || e), stack: String(e?.stack || null) }
+      }
+
+      // attempt 3: explicit options from raw env names
+      try {
+        const rawUrl = process.env.KV_REST_API_URL || process.env.KV_REST_URL || ''
+        const rawToken = process.env.KV_REST_API_TOKEN || process.env.KV_REST_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || ''
+        const rawNs = process.env.KV_REST_API_NAMESPACE || process.env.KV_NAMESPACE || undefined
+        const cfg3: any = {}
+        if (rawUrl) cfg3.url = rawUrl
+        if (rawToken) cfg3.token = rawToken
+        if (rawNs) cfg3.namespace = rawNs
+        const c3 = Object.keys(cfg3).length ? createClient(cfg3) : createClient()
+        attempts['explicit_raw'] = { ok: false }
+        try {
+          const k = '__diag_3'
+          await c3.set(k, '1')
+          const g = await c3.get(k)
+          await c3.del(k)
+          attempts['explicit_raw'].ok = String(g) === '1'
+          if (!attempts['explicit_raw'].ok) attempts['explicit_raw'].error = `got:${String(g)}`
+        } catch (e:any) {
+          attempts['explicit_raw'].error = String(e?.message || e)
+          attempts['explicit_raw'].stack = String(e?.stack || null)
+        }
+      } catch (e:any) {
+        attempts['explicit_raw'] = { ok: false, error: String(e?.message || e), stack: String(e?.stack || null) }
+      }
+
+      // summarize
+      createClientOk = Object.values(attempts).some(a => a.ok)
+      // pick first non-ok error as kvTestError for backward compatibility
+      for (const k of Object.keys(attempts)) {
+        if (!attempts[k].ok) {
+          kvTestError = attempts[k].error || null
+          break
+        }
       }
     } catch (e:any) {
       createClientError = String(e?.message || e)
