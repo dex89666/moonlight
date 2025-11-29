@@ -1,4 +1,13 @@
 {
+  "functions": {
+    "api/[...slug].ts": { "memory": 128, "maxDuration": 10 },
+    "api/telegram-auth.ts": { "memory": 128, "maxDuration": 10 },
+    "api/admin/users.ts": { "memory": 128, "maxDuration": 10 },
+    "api/user/subscription.ts": { "memory": 128, "maxDuration": 10 },
+    "api/debug.ts": { "memory": 128, "maxDuration": 10 }
+  }
+}
+{
   "rewrites": [
     {
       "source": "/((?!api/|assets/|.*\\..*).*)",

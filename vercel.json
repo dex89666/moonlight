@@ -1,4 +1,13 @@
 {
+  "functions": {
+    "apps/web/api/[...slug].ts": { "memory": 128, "maxDuration": 10 },
+    "apps/web/api/telegram-auth.ts": { "memory": 128, "maxDuration": 10 },
+    "apps/web/api/admin/users.ts": { "memory": 128, "maxDuration": 10 },
+    "apps/web/api/user/subscription.ts": { "memory": 128, "maxDuration": 10 },
+    "apps/web/api/debug.ts": { "memory": 128, "maxDuration": 10 }
+  }
+}
+{
   "root": "apps/web",
   "build": {
     "env": {}
