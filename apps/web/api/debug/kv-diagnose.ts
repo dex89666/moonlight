@@ -9,6 +9,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     hasKV_REST_API_URL: !!process.env.KV_REST_API_URL || !!process.env.KV_REST_API_TOKEN || !!process.env.KV_REST_API_NAMESPACE || !!process.env.KV_REST_API_READ_ONLY_TOKEN
   }
 
+  // Inspect candidate env keys for suspicious values (e.g. a path like '/pipeline')
+  const candidates = [
+    'VERCEL_KV_REST_URL',
+    'VERCEL_KV_REST_TOKEN',
+    'VERCEL_KV_NAMESPACE',
+    'KV_REST_API_URL',
+    'KV_REST_API_TOKEN',
+    'KV_REST_API_NAMESPACE',
+    'KV_REST_API_READ_ONLY_TOKEN',
+    'KV_REST_URL',
+    'KV_REST_TOKEN',
+    'KV_NAMESPACE'
+  ]
+  const inspected: Record<string, { present: boolean; startsWithSlash?: boolean; preview?: string }> = {}
+  for (const k of candidates) {
+    const v = process.env[k]
+    inspected[k] = { present: !!v }
+    if (v && typeof v === 'string') {
+      inspected[k].startsWithSlash = v.trim().startsWith('/')
+      inspected[k].preview = v.trim().slice(0, 6)
+    }
+  }
+
   const opts = {
     url: process.env.VERCEL_KV_REST_URL || process.env.KV_REST_API_URL || null,
     token: process.env.VERCEL_KV_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || null,
@@ -55,5 +78,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     createClientError = String(e?.message || e)
   }
 
-  return res.json({ ok: true, env, opts: { url: !!opts.url, token: !!opts.token, namespace: !!opts.namespace }, createClientOk, createClientError, kvTestOk, kvTestError })
+  return res.json({ ok: true, env, inspected, opts: { url: !!opts.url, token: !!opts.token, namespace: !!opts.namespace }, createClientOk, createClientError, kvTestOk, kvTestError })
 }
