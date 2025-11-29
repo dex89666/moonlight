@@ -42,6 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let createClientError: string | null = null
   let kvTestOk = false
   let kvTestError: string | null = null
+  let restFetch: { ok?: boolean; status?: number; location?: string | null; error?: string | null } | null = null
 
   try {
     // dynamic import to avoid import-time errors
@@ -78,5 +79,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     createClientError = String(e?.message || e)
   }
 
-  return res.json({ ok: true, env, inspected, opts: { url: !!opts.url, token: !!opts.token, namespace: !!opts.namespace }, createClientOk, createClientError, kvTestOk, kvTestError })
+  // If we have an explicit REST URL, try a lightweight fetch to observe possible redirects
+  try {
+    if (opts.url) {
+      const resp = await fetch(opts.url, { method: 'HEAD' })
+      restFetch = { ok: resp.ok, status: resp.status, location: resp.headers.get('location') }
+    }
+  } catch (e:any) {
+    restFetch = { error: String(e?.message || e) }
+  }
+
+  return res.json({ ok: true, env, inspected, opts: { url: !!opts.url, token: !!opts.token, namespace: !!opts.namespace }, createClientOk, createClientError, kvTestOk, kvTestError, restFetch })
 }
