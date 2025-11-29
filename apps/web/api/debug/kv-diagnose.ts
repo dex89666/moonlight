@@ -42,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let createClientError: string | null = null
   let kvTestOk = false
   let kvTestError: string | null = null
-  let restFetch: { ok?: boolean; status?: number; location?: string | null; error?: string | null } | null = null
+  let restFetch: { ok?: boolean; status?: number | null; location?: string | null; error?: string | null; origin?: string; pathname?: string } = {}
 
   try {
     // dynamic import to avoid import-time errors
@@ -82,8 +82,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // If we have an explicit REST URL, try a lightweight fetch to observe possible redirects
   try {
     if (opts.url) {
-      const resp = await fetch(opts.url, { method: 'HEAD' })
-      restFetch = { ok: resp.ok, status: resp.status, location: resp.headers.get('location') }
+      try {
+        const u = new URL(opts.url)
+        // include parsed origin and pathname presence
+        restFetch.origin = u.origin
+        restFetch.pathname = u.pathname
+      } catch (e:any) {
+        // if opts.url is not a full URL, record that
+        restFetch.error = 'invalid-url'
+      }
+      // try a lightweight HEAD but ignore failures (some endpoints block HEAD)
+      try {
+        const resp = await fetch(opts.url, { method: 'HEAD' })
+  restFetch.ok = resp.ok
+  restFetch.status = resp.status
+  restFetch.location = resp.headers.get('location')
+      } catch (e:any) {
+        // keep earlier parsed info
+        if (!restFetch) restFetch = { error: String(e?.message || e) }
+      }
     }
   } catch (e:any) {
     restFetch = { error: String(e?.message || e) }
