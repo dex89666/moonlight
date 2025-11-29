@@ -67,19 +67,65 @@ if (hasKvEnv()) {
       }
     }
   } catch (e) {
-    console.error('[DB] createClient() failed, falling back to in-memory KV', e)
-    const store = new Map<string, string>()
-    kv = {
-      async get(key: string) {
-        return store.has(key) ? store.get(key) : null
-      },
-      async set(key: string, value: string) {
-        store.set(key, value)
-        return true
-      },
-      async del(key: string) {
-        return store.delete(key)
+    console.error('[DB] createClient() failed, attempting REST-fallback or in-memory KV', e)
+    // Try REST fallback using explicit REST URL + token if available
+    const restUrl = process.env.VERCEL_KV_REST_URL || process.env.KV_REST_API_URL || ''
+    const restToken = process.env.VERCEL_KV_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || ''
+    const restNamespace = process.env.VERCEL_KV_NAMESPACE || process.env.KV_REST_API_NAMESPACE || undefined
+    const isRestOk = !!restUrl && !!restToken
+    if (isRestOk) {
+      // minimal fetch-based KV client for Upstash-like REST API
+      const base = restUrl.replace(/\/$/, '')
+      kv = {
+        async get(key: string) {
+          try {
+            const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
+            const r = await fetch(url, { headers: { Authorization: `Bearer ${restToken}` } })
+            if (!r.ok) return null
+            const txt = await r.text()
+            return txt === '' ? null : txt
+          } catch (e) {
+            console.warn('[DB][REST] get failed', String(e))
+            return null
+          }
+        },
+        async set(key: string, value: string) {
+          try {
+            const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
+            const r = await fetch(url, { method: 'PUT', body: String(value), headers: { Authorization: `Bearer ${restToken}` } })
+            return r.ok
+          } catch (e) {
+            console.warn('[DB][REST] set failed', String(e))
+            return false
+          }
+        },
+        async del(key: string) {
+          try {
+            const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
+            const r = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${restToken}` } })
+            return r.ok
+          } catch (e) {
+            console.warn('[DB][REST] del failed', String(e))
+            return false
+          }
+        }
       }
+      console.log('[DB] using REST KV fallback', { base: !!base, namespace: !!restNamespace })
+    } else {
+      const store = new Map<string, string>()
+      kv = {
+        async get(key: string) {
+          return store.has(key) ? store.get(key) : null
+        },
+        async set(key: string, value: string) {
+          store.set(key, value)
+          return true
+        },
+        async del(key: string) {
+          return store.delete(key)
+        }
+      }
+      console.log('[DB] REST credentials not present, using in-memory fallback')
     }
   }
 } else {
