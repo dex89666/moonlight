@@ -1,3 +1,21 @@
+Как добавить Vercel KV в проект
+
+1) В Vercel Dashboard: откройте ваш проект → Integrations → Vercel KV. Если интеграция ещё не установлена — установите (Create Namespace).
+
+2) После создания KV namespace вы получите REST URL и REST Token (или параметры в разделе Secrets). Скопируйте их.
+
+3) В Project Settings → Environment Variables добавьте переменные:
+   - `VERCEL_KV_REST_URL` — REST endpoint URL для KV
+   - `VERCEL_KV_REST_TOKEN` — секретный токен/ключ для REST (не публикуйте)
+   - `VERCEL_KV_NAMESPACE` — (опционально) namespace, если требуется
+
+4) Сохраните изменения и перезапустите деплой (новый деплой автоматически подхватит envs).
+
+5) После деплоя: откройте приложение и выполните Telegram login (клиент должен отправить initData в `POST /api/telegram-auth`) — сервер сохранит записи в KV.
+
+6) Проверьте `GET /api/admin/users` — список должен быть заполнен.
+
+Если у вас есть экспорт старых ключей (JSON) — можно импортировать их в KV с помощью скрипта; я могу подготовить безопасный импортный endpoint по запросу.
 Local development instructions
 
 1) Install dependencies (root workspace):

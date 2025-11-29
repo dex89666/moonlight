@@ -23,9 +23,9 @@ export async function handleTarot(
       if (raw) { try{ const obj = typeof raw === 'string' ? JSON.parse(raw) : raw; if (obj?.expiry) u.isPro = new Date(obj.expiry) > new Date() } catch { if (typeof raw === 'string') u.isPro = new Date(raw) > new Date() } }
     } catch(e){ console.warn('[tarot] kv read failed', e) }
 
-    const cacheKey = `${userId}::tarot:today`;
-    // use cache
-    const { getCachedResult, setCachedResult, incrementQuota, getQuota } = await Promise.resolve().then(()=>require('./cache.js'))
+  const cacheKey = `${userId}::tarot:today`;
+  // use cache (dynamic import for ESM/runtime)
+  const { getCachedResult, setCachedResult, incrementQuota, getQuota } = (await import('./cache.js')) as any;
     const cached = await getCachedResult(cacheKey)
     if (cached) return res.json({ analysis: cached.analysis, isPro: cached.isPro, brief: cached.brief, source: 'cache' })
 

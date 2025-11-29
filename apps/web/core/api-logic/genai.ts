@@ -26,9 +26,8 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
   const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
   if (FORCE_CANNED || (!geminiKey && !saCredentialsTop)) {
     try {
-      // lazy import so runtime without TS imports still works
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { pickDeterministic, MATRIX_RESPONSES } = require('../../data/responses.js');
+  // lazy import so runtime without TS imports still works (ESM dynamic import)
+  const { pickDeterministic, MATRIX_RESPONSES } = (await import('../../data/responses.js')) as any;
       // deterministic key fallback
       const key = `force-canned::${(new Date()).toISOString().slice(0,10)}`;
       const canned = pickDeterministic(key, MATRIX_RESPONSES || []);

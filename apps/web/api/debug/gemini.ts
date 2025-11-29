@@ -12,9 +12,8 @@ function mask(s: string | undefined) {
 async function tryMintSaToken(saJsonRaw?: string) {
   if (!saJsonRaw) return { ok: false, error: 'no sa json' };
   try {
-    // lazy require so installs without google-auth-library won't break
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { GoogleAuth } = require('google-auth-library');
+  // lazy dynamic import so runtime without google-auth-library won't break
+  const { GoogleAuth } = (await import('google-auth-library')) as any;
     const sa = JSON.parse(saJsonRaw);
     const auth = new GoogleAuth({
       credentials: sa,
