@@ -16,7 +16,7 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
   try {
     if (saJsonRawTop) saCredentialsTop = JSON.parse(saJsonRawTop);
     else if (saJsonB64Top) saCredentialsTop = JSON.parse(Buffer.from(saJsonB64Top, 'base64').toString('utf-8'));
-  } catch (e) {
+  } catch (e: any) {
     // ignore
   }
 
@@ -87,7 +87,7 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
         console.log('[genai] no service account found; SDK will try default behavior');
       }
       const client = new ClientCtor(clientOpts);
-      try {
+  try {
         const model = opts?.model || process.env.GEMINI_MODEL || 'gemini-1.5-pro';
         const parentEnv = process.env.GEMINI_PARENT || '';
         const sdkModel = parentEnv ? `${parentEnv.replace(/\/$/, '')}/models/${model}` : `models/${model}`;
@@ -100,13 +100,13 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
         sdkTried = true;
         if (text) return String(text);
         sdkError = new Error('Empty SDK response');
-      } catch (e) {
+      } catch (e: any) {
         sdkTried = true;
         sdkError = e;
         console.warn('[genai] SDK call failed', e?.message || e);
       }
     }
-  } catch (e) {
+  } catch (e: any) {
     console.warn('[genai] SDK unavailable', e?.message || e);
   }
 
@@ -135,11 +135,11 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
         } catch (me) {
           console.warn('[genai] GET /v1/models failed', me?.message || me);
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn('[genai] SA token minting failed', e?.message || e);
       }
     }
-  } catch (e) {
+  } catch (e: any) {
     console.warn('[genai] SA token flow error', e?.message || e);
   }
 
@@ -180,7 +180,7 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
     for (const c of candidates) {
       const url = baseUrl + c.path;
       console.log('[genai] trying endpoint', url, { bodySample: JSON.stringify(c.body).slice(0, 200) });
-      try {
+  try {
         const isApiKey = typeof geminiKey === 'string' && (/^AIza/).test(geminiKey);
         const fetchUrl = isApiKey ? `${url}${url.includes('?') ? '&' : '?'}key=${encodeURIComponent(geminiKey)}` : url;
         const headers: any = { 'Content-Type': 'application/json' };
@@ -204,14 +204,14 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
           throw lastErr;
         }
         let data: any = {};
-        try { data = JSON.parse(rawText || '{}'); } catch (pErr) { data = {}; }
+        try { data = JSON.parse(rawText || '{}'); } catch (pErr: any) { data = {}; }
         clearTimeout(timer);
         console.log('[genai] parsed data keys', Object.keys(data || {}));
         const text = data?.choices?.[0]?.text || data?.output?.[0]?.content?.[0]?.text || data?.text || data?.result || data?.candidates?.[0]?.content || '';
         if (text) return String(text);
         lastErr = new Error(`Empty body from ${url}`);
       } catch (innerErr: any) {
-        if (innerErr.name === 'AbortError') { clearTimeout(timer); throw new Error('AI timeout'); }
+        if (innerErr?.name === 'AbortError') { clearTimeout(timer); throw new Error('AI timeout'); }
         lastErr = innerErr; continue;
       }
     }
