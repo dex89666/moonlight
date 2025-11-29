@@ -24,13 +24,13 @@ let kv: any
 // Normalize common alternative env names to the names expected by @vercel/kv
 function normalizeKvEnv() {
   if (!process.env.VERCEL_KV_REST_URL) {
-    process.env.VERCEL_KV_REST_URL = process.env.KV_REST_API_URL || process.env.KV_REST_API_URL || process.env.KV_REST_API_URL
+    process.env.VERCEL_KV_REST_URL = process.env.KV_REST_API_URL || process.env.KV_REST_URL || ''
   }
   if (!process.env.VERCEL_KV_REST_TOKEN) {
-    process.env.VERCEL_KV_REST_TOKEN = process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || process.env.KV_REST_API_TOKEN
+    process.env.VERCEL_KV_REST_TOKEN = process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || process.env.KV_REST_TOKEN || ''
   }
   if (!process.env.VERCEL_KV_NAMESPACE) {
-    process.env.VERCEL_KV_NAMESPACE = process.env.KV_REST_API_NAMESPACE || process.env.KV_REST_API_NAMESPACE
+    process.env.VERCEL_KV_NAMESPACE = process.env.KV_REST_API_NAMESPACE || process.env.KV_NAMESPACE || ''
   }
 }
 
@@ -43,11 +43,25 @@ if (hasKvEnv()) {
       kv = (createClient as any)()
     } catch (innerErr) {
       try {
-        const url = process.env.VERCEL_KV_REST_URL || process.env.KV_REST_API_URL || ''
+        let rawUrl = process.env.VERCEL_KV_REST_URL || process.env.KV_REST_API_URL || ''
+        // sanitize: if the value looks like a path (starts with '/') or lacks a scheme, do not pass it
+        let url: string | undefined = undefined
+        if (rawUrl && typeof rawUrl === 'string') {
+          const trimmed = rawUrl.trim()
+          if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+            url = trimmed
+          } else {
+            console.warn('[DB] KV REST URL looks like a relative path or missing scheme; skipping explicit url to allow platform defaults')
+          }
+        }
         const token = process.env.VERCEL_KV_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || ''
         const ns = process.env.VERCEL_KV_NAMESPACE || process.env.KV_REST_API_NAMESPACE || undefined
         console.log('[DB] createClient() fallback with explicit options', { url: !!url, hasToken: !!token, namespace: !!ns })
-        kv = (createClient as any)({ url, token, namespace: ns })
+        const cfg: any = {}
+        if (url) cfg.url = url
+        if (token) cfg.token = token
+        if (ns) cfg.namespace = ns
+        kv = (createClient as any)(Object.keys(cfg).length ? cfg : undefined)
       } catch (inner2) {
         throw inner2 || innerErr
       }
