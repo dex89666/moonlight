@@ -26,9 +26,10 @@ dist-ssr
 .npmrc
 # СЕКРЕТЫ И ЛОКАЛЬНЫЕ НАСТРОЙКИ
 .env
-.env.*
+.env.local
+.env.*.local
 *.env
-
+.env.example
 # Зависимости
 node_modules
 root-habitat-474808-q1-cf1bd7498da1.json
