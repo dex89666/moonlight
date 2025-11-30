@@ -108,25 +108,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
   // debug: log received user and id
-  console.log('[telegram-auth] saving user', { id, username, first_name, last_name })
-  await kv.set(key, JSON.stringify(userObj))
-  console.log('[telegram-auth] kv.set user done', key)
+  console.log('[telegram-auth] saving user', { id, username, first_name, last_name });
+  // Fire-and-forget: don't block response on KV latency. Log errors.
+  (async () => {
+    try {
+      await kv.set(key, JSON.stringify(userObj))
+      console.log('[telegram-auth] kv.set user done', key)
+    } catch (err) {
+      console.warn('[telegram-auth] kv.set failed (background)', String((err as any)?.message || err))
+    }
+  })()
 
     // maintain users index
     const listKey = 'users:list'
-    const raw = await kv.get(listKey)
+    let raw: any = null
+    try {
+      raw = await kv.get(listKey)
+    } catch (e:any) {
+      console.warn('[telegram-auth] kv.get users:list failed', String(e?.message || e))
+      raw = null
+    }
     let list: string[] = []
     try { list = raw ? JSON.parse(String(raw)) : [] } catch { list = [] }
     if (!list.includes(id)) {
-      list.push(id)
-      await kv.set(listKey, JSON.stringify(list))
-      console.log('[telegram-auth] users:list updated', listKey, list.length)
+  list.push(id);
+      (async () => {
+        try {
+          await kv.set(listKey, JSON.stringify(list))
+          console.log('[telegram-auth] users:list updated', listKey, list.length)
+        } catch (e:any) { console.warn('[telegram-auth] users:list set failed (background)', String(e?.message || e)) }
+      })()
     } else {
       console.log('[telegram-auth] users:list already contains id')
     }
 
     // return subscription status if any
-    const subRaw = await kv.get(`sub:${id}`)
+    let subRaw: any = null
+    try {
+      subRaw = await kv.get(`sub:${id}`)
+    } catch (e:any) {
+      console.warn('[telegram-auth] kv.get sub failed', String(e?.message || e))
+      subRaw = null
+    }
     let sub = null
     try { sub = subRaw ? JSON.parse(String(subRaw)) : null } catch { sub = null }
 
