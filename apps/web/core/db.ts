@@ -87,11 +87,23 @@ if (hasKvEnv()) {
     if (isRestOk) {
       // minimal fetch-based KV client for Upstash-like REST API
       const base = restUrl.replace(/\/$/, '')
+      const DEFAULT_FETCH_TIMEOUT = 3000
+
+      async function fetchWithTimeout(input: string, init?: any, timeout = DEFAULT_FETCH_TIMEOUT) {
+        const controller = new AbortController()
+        const id = setTimeout(() => controller.abort(), timeout)
+        try {
+          const r = await fetch(input, { signal: controller.signal, ...init })
+          return r
+        } finally {
+          clearTimeout(id)
+        }
+      }
       kv = {
         async get(key: string) {
           try {
             const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
-            const r = await fetch(url, { headers: { Authorization: `Bearer ${restToken}` } })
+            const r = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${restToken}` } }, DEFAULT_FETCH_TIMEOUT)
             if (!r.ok) return null
             const txt = await r.text()
             return txt === '' ? null : txt
@@ -103,7 +115,7 @@ if (hasKvEnv()) {
         async set(key: string, value: string) {
           try {
             const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
-            const r = await fetch(url, { method: 'PUT', body: String(value), headers: { Authorization: `Bearer ${restToken}` } })
+            const r = await fetchWithTimeout(url, { method: 'PUT', body: String(value), headers: { Authorization: `Bearer ${restToken}` } }, DEFAULT_FETCH_TIMEOUT)
             return r.ok
           } catch (e) {
             console.warn('[DB][REST] set failed', String(e))
@@ -113,7 +125,7 @@ if (hasKvEnv()) {
         async del(key: string) {
           try {
             const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
-            const r = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${restToken}` } })
+            const r = await fetchWithTimeout(url, { method: 'DELETE', headers: { Authorization: `Bearer ${restToken}` } }, DEFAULT_FETCH_TIMEOUT)
             return r.ok
           } catch (e) {
             console.warn('[DB][REST] del failed', String(e))
@@ -169,7 +181,7 @@ function makeProxy(client: any, restBase?: string, restToken?: string) {
         if (base && token && (msg.includes('/pipeline') || msg.includes('Invalid URL') || msg.includes('ERR_INVALID_URL'))) {
           try {
             const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
-            const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+            const r = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } }, DEFAULT_FETCH_TIMEOUT)
             if (!r.ok) return null
             const txt = await r.text()
             return txt === '' ? null : txt
@@ -189,7 +201,7 @@ function makeProxy(client: any, restBase?: string, restToken?: string) {
         if (base && token && (msg.includes('/pipeline') || msg.includes('Invalid URL') || msg.includes('ERR_INVALID_URL'))) {
           try {
             const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
-            const r = await fetch(url, { method: 'PUT', body: String(value), headers: { Authorization: `Bearer ${token}` } })
+            const r = await fetchWithTimeout(url, { method: 'PUT', body: String(value), headers: { Authorization: `Bearer ${token}` } }, DEFAULT_FETCH_TIMEOUT)
             return r.ok
           } catch (er) {
             console.warn('[DB] REST fallback set failed', String(er))
@@ -207,7 +219,7 @@ function makeProxy(client: any, restBase?: string, restToken?: string) {
         if (base && token && (msg.includes('/pipeline') || msg.includes('Invalid URL') || msg.includes('ERR_INVALID_URL'))) {
           try {
             const url = `${base}/v1/kv/${encodeURIComponent(String(key))}`
-            const r = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+            const r = await fetchWithTimeout(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }, DEFAULT_FETCH_TIMEOUT)
             return r.ok
           } catch (er) {
             console.warn('[DB] REST fallback del failed', String(er))
@@ -233,4 +245,17 @@ export async function setSubscription(userId: string, expiryIso: string) {
 
 export async function getSubscription(userId: string) {
   return kv.get(userId)
+}
+
+// Helper: fetch with timeout (used by REST fallback and proxy)
+const DEFAULT_FETCH_TIMEOUT = 3000
+async function fetchWithTimeout(input: string, init?: any, timeout = DEFAULT_FETCH_TIMEOUT) {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
+  try {
+    const r = await fetch(input, { signal: controller.signal, ...init })
+    return r
+  } finally {
+    clearTimeout(id)
+  }
 }

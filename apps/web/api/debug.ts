@@ -42,12 +42,25 @@ async function handleStatus(_req: VercelRequest) {
   return { ok: true, info }
 }
 
+async function handleEgress(_req: VercelRequest) {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), 2000)
+  try {
+    const r = await fetch('https://api.ipify.org?format=json', { signal: controller.signal })
+    const txt = await r.text().catch(()=>'')
+    return { ok: true, status: r.status, body: txt.slice(0,300) }
+  } catch (e:any) {
+    return { ok: false, error: String(e?.message || e) }
+  } finally { clearTimeout(id) }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = String(req.query.action || 'probe')
   try {
-    if (action === 'probe') return res.status(200).json(await handleProbe(req))
-    if (action === 'kv-test') return res.status(200).json(await handleKvTest(req))
-    if (action === 'status') return res.status(200).json(await handleStatus(req))
+  if (action === 'probe') return res.status(200).json(await handleProbe(req))
+  if (action === 'kv-test') return res.status(200).json(await handleKvTest(req))
+  if (action === 'status') return res.status(200).json(await handleStatus(req))
+  if (action === 'egress') return res.status(200).json(await handleEgress(req))
     return res.status(400).json({ ok: false, error: 'unknown action' })
   } catch (e:any) {
     return res.status(500).json({ ok: false, error: safePreview(String(e?.message || e), 500) })
