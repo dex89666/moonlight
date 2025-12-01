@@ -41,7 +41,29 @@ function normalizeKvEnv() {
 
 if (hasKvEnv()) {
   normalizeKvEnv()
+  // Non-secret runtime info for diagnostics: report which KV env vars are present.
+  // This logs presence and token length only (no token value).
   try {
+    console.log('[DB] KV env presence', {
+      VERCEL_KV_REST_URL: !!process.env.VERCEL_KV_REST_URL,
+      KV_REST_API_URL: !!process.env.KV_REST_API_URL,
+      VERCEL_KV_NAMESPACE: !!process.env.VERCEL_KV_NAMESPACE,
+      KV_REST_API_NAMESPACE: !!process.env.KV_REST_API_NAMESPACE,
+      VERCEL_KV_REST_TOKEN_len: process.env.VERCEL_KV_REST_TOKEN ? process.env.VERCEL_KV_REST_TOKEN.length : 0,
+      KV_REST_API_TOKEN_len: process.env.KV_REST_API_TOKEN ? process.env.KV_REST_API_TOKEN.length : 0
+    })
+  } catch (e) {
+    // never throw during initialization logging
+  }
+  try {
+    // If a REST URL is explicitly provided, prefer REST-only fallback to avoid @vercel/kv auto-initialization issues
+    const explicitRestUrl = process.env.VERCEL_KV_REST_URL || process.env.KV_REST_API_URL || ''
+    const explicitRestToken = process.env.VERCEL_KV_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || ''
+    if (explicitRestUrl && explicitRestToken) {
+      console.log('[DB] explicit REST URL + token detected — using REST-only KV client')
+      // proceed to REST fallback block below by throwing a controlled signal
+      throw new Error('USE_REST_FALLBACK')
+    }
     // Some environments / versions may require passing explicit url/token/namespace.
     // Try dynamic import of @vercel/kv and then try default no-arg first, then try with explicit options.
     try {
@@ -78,7 +100,12 @@ if (hasKvEnv()) {
       throw e
     }
   } catch (e) {
-    console.error('[DB] createClient() failed, attempting REST-fallback or in-memory KV', e)
+    const em = (e as any)?.message || ''
+    if (String(em).includes('USE_REST_FALLBACK')) {
+      console.log('[DB] forcing REST fallback due to explicit REST url/token')
+    } else {
+      console.error('[DB] createClient() failed, attempting REST-fallback or in-memory KV', e)
+    }
     // Try REST fallback using explicit REST URL + token if available
     const restUrl = process.env.VERCEL_KV_REST_URL || process.env.KV_REST_API_URL || ''
     const restToken = process.env.VERCEL_KV_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || ''

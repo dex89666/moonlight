@@ -110,14 +110,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // debug: log received user and id
   console.log('[telegram-auth] saving user', { id, username, first_name, last_name });
   // Fire-and-forget: don't block response on KV latency. Log errors.
-  (async () => {
+  // attempt to persist user with a short timeout; if it fails we'll still return success but mark persistence=false
+  async function safeSet(key: string, value: string, timeout = 2000) {
     try {
-      await kv.set(key, JSON.stringify(userObj))
-      console.log('[telegram-auth] kv.set user done', key)
+      const p = kv.set(key, value)
+      const res = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), timeout))])
+      return !!res
     } catch (err) {
-      console.warn('[telegram-auth] kv.set failed (background)', String((err as any)?.message || err))
+      console.warn('[telegram-auth] safeSet failed', String((err as any)?.message || err))
+      return false
     }
-  })()
+  }
+
+  let persistedUser = false
+  try {
+    persistedUser = await safeSet(key, JSON.stringify(userObj), 2000)
+    if (persistedUser) console.log('[telegram-auth] kv.set user done', key)
+    else console.warn('[telegram-auth] kv.set user not persisted', key)
+  } catch (e) {
+    console.warn('[telegram-auth] kv.set user unexpected error', String((e as any)?.message || e))
+  }
 
     // maintain users index
     const listKey = 'users:list'
@@ -130,16 +142,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     let list: string[] = []
     try { list = raw ? JSON.parse(String(raw)) : [] } catch { list = [] }
+    let persistedList = false
     if (!list.includes(id)) {
-  list.push(id);
-      (async () => {
-        try {
-          await kv.set(listKey, JSON.stringify(list))
-          console.log('[telegram-auth] users:list updated', listKey, list.length)
-        } catch (e:any) { console.warn('[telegram-auth] users:list set failed (background)', String(e?.message || e)) }
-      })()
+      list.push(id)
+      try {
+        persistedList = await safeSet(listKey, JSON.stringify(list), 2000)
+        if (persistedList) console.log('[telegram-auth] users:list updated', listKey, list.length)
+        else console.warn('[telegram-auth] users:list not persisted', listKey)
+      } catch (e:any) { console.warn('[telegram-auth] users:list set failed', String(e?.message || e)) }
     } else {
       console.log('[telegram-auth] users:list already contains id')
+      persistedList = true
     }
 
     // return subscription status if any
@@ -153,9 +166,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let sub = null
     try { sub = subRaw ? JSON.parse(String(subRaw)) : null } catch { sub = null }
 
-    return res.status(200).json({ ok: true, user: userObj, subscription: sub })
+  return res.status(200).json({ ok: true, user: userObj, subscription: sub, persisted: { user: persistedUser, list: persistedList } })
   } catch (e: any) {
-    console.error('[telegram-auth] error', e)
-    return res.status(500).json({ error: 'server error' })
+    // TEMP DEBUG: return readable error and short stack for diagnosis
+    const msg = String((e && (e.message || e)) || 'unknown')
+    const stack = (e && e.stack) ? String(e.stack).split('\n').slice(0,5).join('\n') : ''
+    console.error('[telegram-auth] error', msg, stack)
+    return res.status(500).json({ ok: false, error: msg, stack })
   }
 }

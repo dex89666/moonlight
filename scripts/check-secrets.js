@@ -28,18 +28,20 @@ const patterns = [
 
 let blocked = []
 for (const file of getStagedFiles()) {
-  // skip files we don't care about
   if (!allowedExt.some(ext => file.endsWith(ext))) continue
-  // Read staged content not working tree content to avoid false positives
   let content = ''
   try {
     content = execSync(`git show :"${file}"`, { encoding: 'utf8' })
   } catch (e) {
-    // fallback to working tree
     if (fs.existsSync(file)) content = fs.readFileSync(file, 'utf8')
   }
   for (const re of patterns) {
     if (re.test(content)) {
+      // ignore safe patterns where the token is read from process.env (e.g. process.env.TELEGRAM_BOT_TOKEN)
+      if (/TELEGRAM_BOT_TOKEN/i.test(re.source)) {
+        const envUsage = /process\.env(?:\[['"`]TELEGRAM_BOT_TOKEN['"`]\]|\.TELEGRAM_BOT_TOKEN)/.test(content)
+        if (envUsage) continue
+      }
       blocked.push({ file, pattern: re.toString() })
       break
     }
