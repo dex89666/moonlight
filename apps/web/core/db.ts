@@ -15,7 +15,10 @@ function hasKvEnv() {
     'KV_REST_API_TOKEN',
     'KV_REST_API_READ_ONLY_TOKEN',
     'KV_REST_API_NAMESPACE',
-    'KV_REST_API_URL'
+    'KV_REST_API_URL',
+    // Upstash integration env names
+    'UPSTASH_REDIS_REST_URL',
+    'UPSTASH_REDIS_REST_TOKEN'
   ]
   return keys.some(k => typeof process.env[k] === 'string' && process.env[k]!.trim() !== '')
 }
@@ -107,8 +110,8 @@ if (hasKvEnv()) {
       console.error('[DB] createClient() failed, attempting REST-fallback or in-memory KV', e)
     }
     // Try REST fallback using explicit REST URL + token if available
-    const restUrl = process.env.VERCEL_KV_REST_URL || process.env.KV_REST_API_URL || ''
-    const restToken = process.env.VERCEL_KV_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || ''
+  const restUrl = process.env.VERCEL_KV_REST_URL || process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || ''
+  const restToken = process.env.VERCEL_KV_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || ''
     const restNamespace = process.env.VERCEL_KV_NAMESPACE || process.env.KV_REST_API_NAMESPACE || undefined
     const isRestOk = !!restUrl && !!restToken
     if (isRestOk) {

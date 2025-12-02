@@ -32,3 +32,49 @@ foreach ($p in $paths) {
     Write-Output "TRY $uri -> ERROR: $($_.Exception.Message)"
   }
 }
+
+Write-Output "\n--- Trying alternative auth schemes (query param & Upstash header) ---"
+foreach ($p in $paths) {
+  $uriBase = $url.TrimEnd('/') + $p
+  # try token as query param
+  try {
+    $uri = $uriBase + '?token=' + $token
+    $req = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Get, $uri)
+    $resp = $client.SendAsync($req).Result
+    $status = $resp.StatusCode.value__
+    $body = $resp.Content.ReadAsStringAsync().Result
+    Write-Output "TRY $uri (query token) -> $status"
+    Write-Output $body
+  } catch {
+    Write-Output "TRY $uri (query token) -> ERROR: $($_.Exception.Message)"
+  }
+
+  # try Upstash-specific header X-Upstash-Token (if supported)
+  try {
+    $uri = $uriBase
+    $req = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Get, $uri)
+    $req.Headers.Add('X-Upstash-Token', $token)
+    $resp = $client.SendAsync($req).Result
+    $status = $resp.StatusCode.value__
+    $body = $resp.Content.ReadAsStringAsync().Result
+    Write-Output "TRY $uri (X-Upstash-Token) -> $status"
+    Write-Output $body
+  } catch {
+    Write-Output "TRY $uri (X-Upstash-Token) -> ERROR: $($_.Exception.Message)"
+  }
+
+  # try Authorization: Upstash <token>
+  try {
+    $uri = $uriBase
+    $req = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Get, $uri)
+    $req.Headers.Authorization = [System.Net.Http.Headers.AuthenticationHeaderValue]::new('Upstash', $token)
+    $resp = $client.SendAsync($req).Result
+    $status = $resp.StatusCode.value__
+    $body = $resp.Content.ReadAsStringAsync().Result
+    Write-Output "TRY $uri (Authorization: Upstash) -> $status"
+    Write-Output $body
+  } catch {
+    Write-Output "TRY $uri (Authorization: Upstash) -> ERROR: $($_.Exception.Message)"
+  }
+
+}
