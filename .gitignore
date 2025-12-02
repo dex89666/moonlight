@@ -33,6 +33,6 @@ dist-ssr
 # Зависимости
 node_modules
 root-habitat-474808-q1-cf1bd7498da1.json
-
+.upstash_token
 # Local tokens for testing (do not commit)
 TOKEN_TEST

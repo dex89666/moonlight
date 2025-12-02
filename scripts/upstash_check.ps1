@@ -1,28 +1,23 @@
 # Safe Upstash check script
+param(
+  [string]$ProdUrl
+)
+
+# Read .upstash_token and extract URL + token robustly
+if (-not (Test-Path -Path .\.upstash_token)) { Write-Output "ERROR: .upstash_token not found"; exit 2 }
 $raw = Get-Content -Raw .\.upstash_token
 $lines = $raw -split "\r?\n"
-$url = ($lines | Where-Object { $_ -match 'https?://' } | ForEach-Object { $_.Trim() })[0]
-$tokenLine = ($lines | Where-Object { $_ -match 'Token' })[0]
-if (-not $url -or -not $tokenLine) { Write-Output "ERROR: missing url or token in .upstash_token"; exit 2 }
-$token = $tokenLine -replace 'Token','' -replace '\\s',''
-Write-Output "LOCAL UPSTASH URL: $url"
-# Read file and robustly extract URL and token
-$raw = Get-Content -Raw .\.upstash_token
-$lines = $raw -split "\\r?\\n"
 
-# attempt to find first URL-looking substring anywhere in file
 $url = $null
 foreach ($ln in $lines) {
   if ($ln -match '(https?://[^\s`]+)') { $url = $matches[1]; break }
 }
 
-# attempt to find token after the word Token or last word on second line
 $token = $null
 foreach ($ln in $lines) {
   if ($ln -match 'Token\s*[:\-]?\s*([A-Za-z0-9_-]+)') { $token = $matches[1]; break }
 }
 if (-not $token -and $lines.Length -ge 1) {
-  # fallback: use last whitespace-separated token on last non-empty line
   $cand = ($lines | Where-Object { $_ -match '\S' } | Select-Object -Last 1)
   if ($cand -match '([A-Za-z0-9_-]{10,})') { $token = $matches[1] }
 }
@@ -72,11 +67,15 @@ try {
 } catch {
   Write-Output "LOCAL GET ERROR: $($_.Exception.Message)"
 }
-# Prod checks (do not expose token)
-$PROD = 'https://moonlight-j96wivjuo-vlads-projects-f49359be.vercel.app'
+# Prod checks (do not expose token). Accept optional prod URL as script arg.
+if (-not $ProdUrl -or $ProdUrl.Trim() -eq '') {
+  Write-Output "NOTE: no prod URL provided as argument; skipping PROD checks. To run prod probes, call script with prod URL as first argument."
+  exit 0
+}
+$prod = $ProdUrl.TrimEnd('/')
 Write-Output "\nPROD PROBE:" 
-try { Invoke-RestMethod -Uri "$PROD/api/debug?action=probe" -Method Get | ConvertTo-Json -Depth 4 | Write-Output } catch { Write-Output "PROD PROBE ERROR: $($_.Exception.Message)" }
+try { Invoke-RestMethod -Uri "$prod/api/debug?action=probe" -Method Get | ConvertTo-Json -Depth 4 | Write-Output } catch { Write-Output "PROD PROBE ERROR: $($_.Exception.Message)" }
 Write-Output "\nPROD KV-TEST:" 
-try { Invoke-RestMethod -Uri "$PROD/api/debug?action=kv-test" -Method Get | ConvertTo-Json -Depth 4 | Write-Output } catch { Write-Output "PROD KV-TEST ERROR: $($_.Exception.Message)" }
+try { Invoke-RestMethod -Uri "$prod/api/debug?action=kv-test" -Method Get | ConvertTo-Json -Depth 4 | Write-Output } catch { Write-Output "PROD KV-TEST ERROR: $($_.Exception.Message)" }
 Write-Output "\nPROD ADMIN USERS:" 
-try { Invoke-RestMethod -Uri "$PROD/api/admin/users" -Method Get | ConvertTo-Json -Depth 4 | Write-Output } catch { Write-Output "PROD ADMIN USERS ERROR: $($_.Exception.Message)" }
+try { Invoke-RestMethod -Uri "$prod/api/admin/users" -Method Get | ConvertTo-Json -Depth 4 | Write-Output } catch { Write-Output "PROD ADMIN USERS ERROR: $($_.Exception.Message)" }

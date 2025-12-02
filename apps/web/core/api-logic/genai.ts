@@ -103,11 +103,11 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
       } catch (e: any) {
         sdkTried = true;
         sdkError = e;
-        console.warn('[genai] SDK call failed', e?.message || e);
+        console.warn('[genai] SDK call failed', (e as any)?.message || e);
       }
     }
   } catch (e: any) {
-    console.warn('[genai] SDK unavailable', e?.message || e);
+    console.warn('[genai] SDK unavailable', (e as any)?.message || e);
   }
 
   // If SDK was not available but we have service account JSON, try to mint an OAuth access token
@@ -133,14 +133,14 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
           console.log('[genai] GET /v1/models status', mres.status, mres.statusText);
           console.log('[genai] GET /v1/models body (raw)', mtext.slice(0,2000));
         } catch (me) {
-          console.warn('[genai] GET /v1/models failed', me?.message || me);
+          console.warn('[genai] GET /v1/models failed', (me as any)?.message || me);
         }
       } catch (e: any) {
-        console.warn('[genai] SA token minting failed', e?.message || e);
+        console.warn('[genai] SA token minting failed', (e as any)?.message || e);
       }
     }
   } catch (e: any) {
-    console.warn('[genai] SA token flow error', e?.message || e);
+    console.warn('[genai] SA token flow error', (e as any)?.message || e);
   }
 
   // If we used service-account and SDK failed, abort and return error (avoid HTTP key fallback)
@@ -211,7 +211,7 @@ export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: nu
         if (text) return String(text);
         lastErr = new Error(`Empty body from ${url}`);
       } catch (innerErr: any) {
-        if (innerErr?.name === 'AbortError') { clearTimeout(timer); throw new Error('AI timeout'); }
+        if ((innerErr as any)?.name === 'AbortError') { clearTimeout(timer); throw new Error('AI timeout'); }
         lastErr = innerErr; continue;
       }
     }
