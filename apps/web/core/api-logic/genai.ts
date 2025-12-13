@@ -1,6 +1,144 @@
-// Helper to call Gemini (prefer @google/genai SDK, fallback to fetch)
-// Use env fallback model to avoid static import issues in serverless runtime
-const FALLBACK_MODEL = process.env.MODEL || 'mistralai/mistral-7b-instruct:free';
+// Helper to call AI (supports OpenRouter free models, Gemini, and canned fallback)
+// OpenRouter provides free models like mistral-7b-instruct:free, llama-3.2-3b-instruct:free
+const FALLBACK_MODEL = process.env.MODEL || 'meta-llama/llama-3.2-3b-instruct:free';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+// Тип анализа: brief (краткий для бесплатных) или detailed (подробный для PRO)
+export type AnalysisType = 'brief' | 'detailed';
+
+// Генерирует промпт в зависимости от типа анализа
+function wrapPrompt(basePrompt: string, type: AnalysisType): string {
+  if (type === 'brief') {
+    return `Ответь ОЧЕНЬ КРАТКО, максимум 2-3 предложения. Без деталей и объяснений.
+
+${basePrompt}
+
+ВАЖНО: Твой ответ должен быть максимально коротким (2-3 предложения). Никаких подробностей.`;
+  } else {
+    return `Дай подробный, развёрнутый анализ. Объясни детально каждый аспект.
+
+${basePrompt}
+
+Ответь развёрнуто с подробным объяснением каждого пункта (3-5 абзацев).`;
+  }
+}
+
+export async function generateWithAI(
+  prompt: string, 
+  opts?: { 
+    timeoutMs?: number, 
+    model?: string,
+    analysisType?: AnalysisType 
+  }
+): Promise<string> {
+  const analysisType = opts?.analysisType || 'brief';
+  const wrappedPrompt = wrapPrompt(prompt, analysisType);
+  
+  // Try OpenRouter first (free models available)
+  const openRouterKey = process.env.OPENROUTER_API_KEY || '';
+  if (openRouterKey) {
+    try {
+      const result = await callOpenRouter(wrappedPrompt, openRouterKey, opts);
+      if (result) return result;
+    } catch (e: any) {
+      console.warn('[genai] OpenRouter failed:', e.message);
+    }
+  }
+  
+  // Fallback to Gemini
+  try {
+    const result = await generateWithGemini(wrappedPrompt, opts);
+    if (result) return result;
+  } catch (e: any) {
+    console.warn('[genai] Gemini failed:', e.message);
+  }
+  
+  // Final fallback to canned responses
+  return getCannedResponse(prompt, analysisType);
+}
+
+async function callOpenRouter(prompt: string, apiKey: string, opts?: { timeoutMs?: number, model?: string }): Promise<string> {
+  const timeoutMs = opts?.timeoutMs || 15000;
+  const model = opts?.model || FALLBACK_MODEL;
+  
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(OPENROUTER_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.VERCEL_URL || 'https://miniapp.vercel.app',
+        'X-Title': 'MiniApp Numerology'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: 'Ты эксперт по нумерологии, астрологии и эзотерике. Отвечай на русском языке.' },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 1000,
+        temperature: 0.7
+      }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timer);
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      throw new Error(`OpenRouter error: ${response.status} ${errorText}`);
+    }
+    
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content || '';
+    if (text) return text;
+    throw new Error('Empty response from OpenRouter');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function getCannedResponse(prompt: string, type: AnalysisType): string {
+  // Simple hash for deterministic selection
+  let hash = 0;
+  for (let i = 0; i < prompt.length; i++) {
+    hash = ((hash << 5) - hash) + prompt.charCodeAt(i);
+    hash = hash & hash;
+  }
+  
+  const briefResponses = [
+    'Ваши числа указывают на период перемен и новых возможностей.',
+    'Энергия этого дня благоприятна для начинаний.',
+    'Числовая вибрация говорит о важности баланса в жизни.',
+    'Сейчас хорошее время для самоанализа и роста.',
+    'Ваша нумерологическая карта показывает сильный творческий потенциал.'
+  ];
+  
+  const detailedResponses = [
+    `Ваш нумерологический анализ показывает интересную картину. 
+
+Основные числа в вашей матрице указывают на глубокий внутренний потенциал и способность к трансформации. Это период, когда важно прислушиваться к интуиции и доверять своему внутреннему голосу.
+
+Энергетические вибрации текущего периода благоприятствуют творческим начинаниям и личностному росту. Рекомендуется обратить внимание на отношения с близкими людьми и работу над собой.
+
+В ближайшее время могут открыться новые возможности, особенно в сфере профессионального развития. Будьте открыты к переменам и не бойтесь выходить из зоны комфорта.`,
+    
+    `Детальный анализ вашей числовой матрицы раскрывает многогранную личность.
+
+Ваше Число Судьбы говорит о лидерских качествах и способности вести за собой других. Однако важно помнить о балансе между амбициями и заботой о близких.
+
+Текущий нумерологический цикл указывает на необходимость завершения старых дел перед началом новых проектов. Это время для подведения итогов и планирования будущего.
+
+Рекомендации: уделите внимание здоровью, развивайте творческие способности, будьте открыты к новым знакомствам и возможностям.`
+  ];
+  
+  const responses = type === 'brief' ? briefResponses : detailedResponses;
+  const index = Math.abs(hash) % responses.length;
+  return responses[index];
+}
 
 export async function generateWithGemini(prompt: string, opts?: { timeoutMs?: number, model?: string }) {
   const envGeminiKey = process.env.GEMINI_API_KEY || '';

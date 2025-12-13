@@ -8,18 +8,23 @@ export default function Home() {
   const [showAdmin, setShowAdmin] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(() => { try { return JSON.parse(localStorage.getItem('currentUser')||'null') } catch { return null } })
   const timerRef = useRef<number | null>(null)
-    const [tapCount, setTapCount] = useState(0)
 
     function attemptAdminLogin() {
       const login = window.prompt('Admin login') || ''
       const pass = window.prompt('Admin password') || ''
+      // Логин: mavkoj (6 букв), пароль: 372915 (6 цифр)
       if (login === 'mavkoj' && pass === '372915') {
+        // Сохраняем креденшиалы для API запросов
+        try {
+          localStorage.setItem('admin:basic', btoa(`${login}:${pass}`))
+        } catch {}
         setShowAdmin(true)
       } else {
         alert('Неверные учетные данные')
       }
     }
 
+  // Долгое нажатие 5 секунд на "Илона" для открытия админки
   function startAdminTimer(){
     if (timerRef.current) return
     timerRef.current = window.setTimeout(()=>{
@@ -30,25 +35,6 @@ export default function Home() {
   function clearAdminTimer(){
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
   }
-
-    // taps logic: 5 taps within 3s -> prompt login
-    useEffect(() => {
-      if (tapCount <= 0) return
-      const t = window.setTimeout(() => setTapCount(0), 3000)
-      return () => clearTimeout(t)
-    }, [tapCount])
-
-    function onTap() {
-      setTapCount(c => {
-        const next = c + 1
-        if (next >= 5) {
-          setTapCount(0)
-          attemptAdminLogin()
-          return 0
-        }
-        return next
-      })
-    }
 
   async function handleTelegramLogin() {
     // if Telegram WebApp present, get initData and send to server
@@ -78,9 +64,21 @@ export default function Home() {
   }
   return (
     <>
-  <div onClick={onTap} onMouseDown={startAdminTimer} onMouseUp={clearAdminTimer} onMouseLeave={clearAdminTimer} onTouchStart={startAdminTimer} onTouchEnd={clearAdminTimer}>
     <Section>
       <h1>Добро пожаловать</h1>
+      <p style={{ marginBottom: '16px', color: '#888', fontSize: '14px' }}>
+        Астрологический помощник от{' '}
+        <span 
+          onMouseDown={startAdminTimer} 
+          onMouseUp={clearAdminTimer} 
+          onMouseLeave={clearAdminTimer} 
+          onTouchStart={startAdminTimer} 
+          onTouchEnd={clearAdminTimer}
+          style={{ cursor: 'text', userSelect: 'none' }}
+        >
+          Илона
+        </span>
+      </p>
       <div style={{display:'flex',gap:10,marginBottom:12}}>
         {!currentUser ? (
           <Button onClick={handleTelegramLogin}>Войти через Telegram</Button>
@@ -123,12 +121,25 @@ export default function Home() {
         </Link>
       </div>
   </Section>
-  </div>
-  {showAdmin && <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)'}}>
-      <div style={{width:800,margin:'60px auto',background:'#fff',padding:20}}>
-        <button onClick={()=>setShowAdmin(false)}>Close</button>
-        <AdminPage/>
-      </div>
+  {showAdmin && <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.9)',zIndex:1000,overflow:'auto'}}>
+      <AdminPage/>
+      <button 
+        onClick={()=>setShowAdmin(false)} 
+        style={{
+          position:'fixed',
+          top:20,
+          right:20,
+          padding:'10px 20px',
+          borderRadius:'8px',
+          border:'none',
+          background:'rgba(255,255,255,0.2)',
+          color:'#fff',
+          cursor:'pointer',
+          zIndex:1001
+        }}
+      >
+        ✕ Закрыть
+      </button>
     </div>}
   </>
   );
