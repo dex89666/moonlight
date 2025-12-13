@@ -34,7 +34,9 @@ export async function handleTarot(
       
       if (text) {
         console.log('[tarot] AI response received, length:', text.length);
-        return res.json({ analysis: text, isPro: true, brief: false, source: 'ai' });
+        // Проверяем, не canned ли ответ
+        const isCanned = text.includes('вариант #') || text.includes('Матрица. Прогноз');
+        return res.json({ analysis: text, isPro: true, brief: false, source: isCanned ? 'canned' : 'ai' });
       }
       console.log('[tarot] AI returned empty, falling back to canned');
     }

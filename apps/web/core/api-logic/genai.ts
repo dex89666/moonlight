@@ -56,10 +56,11 @@ export async function generateWithAI(
   try {
     console.log('[genai] Trying Gemini fallback...');
     const result = await generateWithGemini(wrappedPrompt, opts);
-    if (result) {
+    if (result && !result.includes('вариант #')) {
       console.log('[genai] Gemini success');
       return result;
     }
+    console.log('[genai] Gemini returned canned or empty');
   } catch (e: any) {
     console.warn('[genai] Gemini failed:', e.message);
   }
