@@ -138,7 +138,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         env: {
           hasMongoUri: !!process.env.MONGODB_URI,
           hasBotToken: !!process.env.TELEGRAM_BOT_TOKEN,
-          hasOpenRouter: !!process.env.OPENROUTER_API_KEY
+          hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
+          adminLoginLength: (process.env.ADMIN_LOGIN || '').length,
+          adminPassLength: (process.env.ADMIN_PASSWORD || '').length,
+          adminLoginTrimmed: (process.env.ADMIN_LOGIN || '').trim(),
+          adminPassTrimmed: (process.env.ADMIN_PASSWORD || '').trim()
         }
       });
     }
