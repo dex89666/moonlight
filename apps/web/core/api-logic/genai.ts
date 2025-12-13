@@ -35,7 +35,7 @@ export async function generateWithAI(
   const wrappedPrompt = wrapPrompt(prompt, analysisType);
   
   // Try OpenRouter first (free models available)
-  const openRouterKey = process.env.OPENROUTER_API_KEY || '';
+  const openRouterKey = (process.env.OPENROUTER_API_KEY || '').trim();
   console.log('[genai] OpenRouter key exists:', !!openRouterKey, 'length:', openRouterKey.length);
   
   if (openRouterKey) {
