@@ -374,5 +374,9 @@ export function isGeminiConfigured() {
   return Boolean(k);
 }
 
+export function isAIConfigured() {
+  return Boolean(process.env.OPENROUTER_API_KEY) || isGeminiConfigured();
+}
+
 
 

@@ -1,8 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateWithGemini, isGeminiConfigured } from './genai.js';
+import { generateWithAI, isAIConfigured } from './genai.js';
 import { TAROT_RESPONSES, pickStructured } from '../../data/responses.js';
 import { kv } from '../db.js';
-// ⭐️ ИСПРАВЛЕНО: Путь стал ../../data/
 import { getUser } from '../../data/store.js';
 
 // ⭐️ ИСПРАВЛЕНО: 'export default' заменен на 'export async function'
@@ -36,7 +35,7 @@ export async function handleTarot(
     }
 
     const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
-    if (!isGeminiConfigured() || FORCE_CANNED) {
+    if (!isAIConfigured() || FORCE_CANNED) {
       const canned = pickStructured(userId, TAROT_RESPONSES as any);
       const analysis = allowFull ? canned.full : (canned.brief + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');
       await setCachedResult(cacheKey, { analysis, isPro: u.isPro, brief: !allowFull }, 24*3600)
@@ -54,8 +53,9 @@ export async function handleTarot(
     Используй Markdown для выделения названия карты.
     `;
 
-  console.log('[tarot] calling Gemini for user', userId)
-  const text = await generateWithGemini(prompt, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
+  console.log('[tarot] calling AI for user', userId)
+  const analysisType = allowFull ? 'detailed' : 'brief';
+  const text = await generateWithAI(prompt, { timeoutMs: 15000, analysisType });
   
     if (!text) {
       throw new Error('ИИ вернул пустой ответ.');
