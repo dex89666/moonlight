@@ -73,7 +73,8 @@ export async function getQuota(userId: string) {
 export async function canUseQuota(userId: string): Promise<boolean> {
   try {
     const status = await mongoQuotaStatus(userId)
-    return status.isPro || status.remaining > 0
+    const remaining = status.limit - status.used
+    return status.isPro || remaining > 0
   } catch (e) {
     console.warn('[quota] canUse error', e)
     return false
