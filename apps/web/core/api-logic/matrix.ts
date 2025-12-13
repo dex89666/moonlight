@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateWithGemini, isGeminiConfigured } from './genai.js';
+import { generateWithAI, isAIConfigured } from './genai.js';
 import { MATRIX_RESPONSES, pickStructured } from '../../data/responses.js';
 import { isValidDateStr } from '../guard.js';
 import { normalizeDateInput } from './utils.js';
@@ -104,15 +104,16 @@ export async function handleMatrix(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    if (!isGeminiConfigured() || FORCE_CANNED) {
+    if (!isAIConfigured() || FORCE_CANNED) {
       const canned = pickStructured(cacheKey, MATRIX_RESPONSES as any);
       const analysis = allowFull ? canned.full : (canned.brief + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');
       await setCachedResult(cacheKey, { analysis, isPro: isPro, brief: !allowFull }, 24*3600)
       return res.json({ analysis, isPro, brief: !allowFull, matrixData, source: 'canned' });
     }
 
-    // generate with Gemini (or any AI)
-    const text = await generateWithGemini(allowFull ? PRO_PROMPT : FREE_PROMPT, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
+    // generate with AI (OpenRouter or Gemini)
+    const analysisType = allowFull ? 'detailed' : 'brief';
+    const text = await generateWithAI(allowFull ? PRO_PROMPT : FREE_PROMPT, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 15000), analysisType });
     if (!text) throw new Error('Empty response from AI');
 
     const finalAnalysis = allowFull ? text : (text.split('\n')[0] + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');

@@ -82,20 +82,7 @@ function App() {
           overflow:'auto',
           WebkitOverflowScrolling: 'touch'
         }}>
-          <AdminPage />
-          <div style={{
-            position:'fixed',
-            top: 'max(12px, env(safe-area-inset-top))',
-            right:16,
-            zIndex:1001,
-            display:'flex',
-            gap:10,
-            alignItems:'center'
-          }}>
-            <span style={{color:'#666',fontSize:11,background:'rgba(0,0,0,0.5)',padding:'4px 8px',borderRadius:4}}>
-              5 тапов на "Домой" = выход
-            </span>
-          </div>
+          <AdminPage onClose={() => setShowAdmin(false)} />
         </div>
       )}
     </Layout>

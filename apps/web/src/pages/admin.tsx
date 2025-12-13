@@ -93,7 +93,11 @@ async function adminPost(action: string, body: Record<string, any> = {}): Promis
   return response.json()
 }
 
-export default function AdminPage() {
+interface AdminPageProps {
+  onClose?: () => void
+}
+
+export default function AdminPage({ onClose }: AdminPageProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(!!getAdminAuth())
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
@@ -205,8 +209,29 @@ export default function AdminPage() {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+        position: 'relative'
       }}>
+        {/* Кнопка закрытия */}
+        {onClose && (
+          <button onClick={onClose} style={{
+            position: 'absolute',
+            top: 'max(16px, env(safe-area-inset-top))',
+            left: 16,
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: 'none',
+            background: 'rgba(255,255,255,0.15)',
+            color: '#fff',
+            cursor: 'pointer',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            ✕ Закрыть
+          </button>
+        )}
         <form onSubmit={handleLogin} style={{
           background: 'rgba(255,255,255,0.1)',
           padding: '40px',
@@ -295,7 +320,22 @@ export default function AdminPage() {
         flexWrap: 'wrap',
         gap: '10px'
       }}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(18px, 5vw, 24px)' }}>📊 Админ-панель</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {onClose && (
+            <button onClick={onClose} style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'rgba(255,255,255,0.15)',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}>
+              ✕
+            </button>
+          )}
+          <h1 style={{ margin: 0, fontSize: 'clamp(18px, 5vw, 24px)' }}>📊 Админ-панель</h1>
+        </div>
         <button onClick={handleLogout} style={{
           padding: '8px 16px',
           borderRadius: '8px',

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateWithGemini, isGeminiConfigured } from './genai.js';
+import { generateWithAI, isAIConfigured } from './genai.js';
 // ⭐️ ИСПРАВЛЕНО: Берем конфиг из соседней папки core
 import { SYSTEM_PROMPT, MODEL } from '../config.js';
 import { isAllowedTopic } from '../guard.js';
@@ -32,12 +32,12 @@ export async function handleChat(req: VercelRequest, res: VercelResponse) {
 
   try {
     // Use Gemini only
-    if (!isGeminiConfigured()) {
-      return res.json({ output: `(Тест) Ответ на: ${prompt}. Проверьте GEMINI_API_KEY.`, isPro: u.isPro });
+    if (!isAIConfigured()) {
+      return res.json({ output: `(Тест) Ответ на: ${prompt}. AI не настроен.`, isPro: u.isPro });
     }
 
     const fullPrompt = `${SYSTEM_PROMPT}\n\nКонтекст: ${category}. Вопрос пользователя: ${prompt}`;
-    const answer = await generateWithGemini(fullPrompt, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
+    const answer = await generateWithAI(fullPrompt, { timeoutMs: 15000, analysisType: 'detailed' });
     incFree(userId);
 
     return res.json({

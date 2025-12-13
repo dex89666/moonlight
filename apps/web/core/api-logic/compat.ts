@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateWithGemini, isGeminiConfigured } from './genai.js';
+import { generateWithAI, isAIConfigured } from './genai.js';
 import { COMPAT_RESPONSES, pickStructured } from '../../data/responses.js';
 import { kv } from '../db.js';
 import { isValidDateStr } from '../guard.js';
@@ -48,7 +48,7 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
     }
 
     const FORCE_CANNED = process.env.FORCE_CANNED === '1' || process.env.FORCE_OFFLINE === '1' || process.env.USE_CANNED === 'true';
-    if (!isGeminiConfigured() || FORCE_CANNED) {
+    if (!isAIConfigured() || FORCE_CANNED) {
       const canned = pickStructured(cacheKey, COMPAT_RESPONSES as any);
       const analysis = allowFull ? canned.full : (canned.brief + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');
       await setCachedResult(cacheKey, { analysis, isPro: u.isPro, brief: !allowFull }, 24*3600)
@@ -60,7 +60,7 @@ export async function handleCompat(req: VercelRequest, res: VercelResponse) {
     Дай краткую характеристику союза, сильные стороны и возможные зоны напряжения.
     `;
 
-    const text = await generateWithGemini(prompt, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
+    const text = await generateWithAI(prompt, { timeoutMs: 15000, analysisType: allowFull ? 'detailed' : 'brief' });
     if (!text) throw new Error('Empty response from AI');
 
     const final = allowFull ? text : (text.split('\n')[0] + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');

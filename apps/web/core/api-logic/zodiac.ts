@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateWithGemini, isGeminiConfigured } from './genai.js';
+import { generateWithAI, isAIConfigured } from './genai.js';
 import { isValidSign } from '../guard.js';
 import { getUser } from '../../data/store.js';
 import { ZODIAC_RESPONSES, pickStructured } from '../../data/responses.js';
@@ -58,7 +58,7 @@ export async function handleZodiac(req: VercelRequest, res: VercelResponse) {
       if (q < 2) { allowFull = true; await incrementQuota(userId) }
     }
 
-    if (!isGeminiConfigured()) {
+    if (!isAIConfigured()) {
       const canned = pickStructured(`${userId}::${sign}`, ZODIAC_RESPONSES as any);
       const analysis = allowFull ? canned.full : (canned.brief + '\n\nДля продолжения подробного анализа необходимо приобрести подписку PRO.');
       await setCachedResult(cacheKey, { analysis, isPro: u.isPro, brief: !allowFull }, 24*3600)
@@ -71,7 +71,7 @@ export async function handleZodiac(req: VercelRequest, res: VercelResponse) {
     Твой ответ должен быть текстом из 2-3 абзацев на русском языке.
     `;
 
-    const text = await generateWithGemini(prompt, { timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 8000) });
+    const text = await generateWithAI(prompt, { timeoutMs: 15000, analysisType: 'detailed' });
     if (!text) throw new Error('Empty response from AI');
 
     console.log('[Zodiac] ✅ Ответ от AI получен!');
