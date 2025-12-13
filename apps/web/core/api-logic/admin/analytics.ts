@@ -13,8 +13,8 @@ import {
 } from '../../mongodb.js'
 
 // Админ-креденшиалы (6 букв логин, 6 цифр пароль)
-const ADMIN_LOGIN = process.env.ADMIN_LOGIN || 'mavkoj'
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '372915'
+const ADMIN_LOGIN = (process.env.ADMIN_LOGIN || 'mavkoj').trim()
+const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '372915').trim()
 
 // Проверка Basic Auth
 function checkAdminAuth(req: VercelRequest): boolean {
@@ -25,7 +25,7 @@ function checkAdminAuth(req: VercelRequest): boolean {
     const base64 = authHeader.slice(6)
     const decoded = Buffer.from(base64, 'base64').toString('utf-8')
     const [login, password] = decoded.split(':')
-    return login === ADMIN_LOGIN && password === ADMIN_PASSWORD
+    return login.trim() === ADMIN_LOGIN && password.trim() === ADMIN_PASSWORD
   } catch {
     return false
   }
