@@ -42,7 +42,7 @@ export default function Header() {
   }
 
   return (
-    <header className="header" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
+    <header className="header">
       <div className="container row">
         <div className="brand" role="button" tabIndex={0} onClick={onBrandClick} onKeyDown={(e) => { if (e.key === 'Enter') onBrandClick() }}>Илона</div>
         <nav style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
