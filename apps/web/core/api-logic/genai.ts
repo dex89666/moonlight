@@ -36,10 +36,17 @@ export async function generateWithAI(
   
   // Try OpenRouter first (free models available)
   const openRouterKey = process.env.OPENROUTER_API_KEY || '';
+  console.log('[genai] OpenRouter key exists:', !!openRouterKey, 'length:', openRouterKey.length);
+  
   if (openRouterKey) {
     try {
+      console.log('[genai] Calling OpenRouter...');
       const result = await callOpenRouter(wrappedPrompt, openRouterKey, opts);
-      if (result) return result;
+      if (result) {
+        console.log('[genai] OpenRouter success, response length:', result.length);
+        return result;
+      }
+      console.log('[genai] OpenRouter returned empty');
     } catch (e: any) {
       console.warn('[genai] OpenRouter failed:', e.message);
     }
@@ -47,19 +54,26 @@ export async function generateWithAI(
   
   // Fallback to Gemini
   try {
+    console.log('[genai] Trying Gemini fallback...');
     const result = await generateWithGemini(wrappedPrompt, opts);
-    if (result) return result;
+    if (result) {
+      console.log('[genai] Gemini success');
+      return result;
+    }
   } catch (e: any) {
     console.warn('[genai] Gemini failed:', e.message);
   }
   
   // Final fallback to canned responses
+  console.log('[genai] Using canned fallback');
   return getCannedResponse(prompt, analysisType);
 }
 
 async function callOpenRouter(prompt: string, apiKey: string, opts?: { timeoutMs?: number, model?: string }): Promise<string> {
-  const timeoutMs = opts?.timeoutMs || 15000;
+  const timeoutMs = opts?.timeoutMs || 20000;
   const model = opts?.model || FALLBACK_MODEL;
+  
+  console.log('[genai] OpenRouter model:', model, 'timeout:', timeoutMs);
   
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -70,7 +84,7 @@ async function callOpenRouter(prompt: string, apiKey: string, opts?: { timeoutMs
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.VERCEL_URL || 'https://miniapp.vercel.app',
+        'HTTP-Referer': process.env.VERCEL_URL || 'https://web-beta-woad.vercel.app',
         'X-Title': 'MiniApp Numerology'
       },
       body: JSON.stringify({
@@ -87,12 +101,16 @@ async function callOpenRouter(prompt: string, apiKey: string, opts?: { timeoutMs
     
     clearTimeout(timer);
     
+    console.log('[genai] OpenRouter response status:', response.status);
+    
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
+      console.error('[genai] OpenRouter error body:', errorText);
       throw new Error(`OpenRouter error: ${response.status} ${errorText}`);
     }
     
     const data = await response.json();
+    console.log('[genai] OpenRouter response keys:', Object.keys(data || {}));
     const text = data?.choices?.[0]?.message?.content || '';
     if (text) return text;
     throw new Error('Empty response from OpenRouter');
