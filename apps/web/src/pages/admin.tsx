@@ -282,43 +282,57 @@ export default function AdminPage() {
     <div style={{ 
       minHeight: '100vh', 
       background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-      padding: '20px',
-      color: '#fff'
+      padding: 'max(20px, env(safe-area-inset-top)) 16px 20px 16px',
+      color: '#fff',
+      boxSizing: 'border-box'
     }}>
       {/* Header */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        marginBottom: '24px'
+        marginBottom: '20px',
+        flexWrap: 'wrap',
+        gap: '10px'
       }}>
-        <h1 style={{ margin: 0 }}>📊 Админ-панель</h1>
+        <h1 style={{ margin: 0, fontSize: 'clamp(18px, 5vw, 24px)' }}>📊 Админ-панель</h1>
         <button onClick={handleLogout} style={{
           padding: '8px 16px',
           borderRadius: '8px',
           border: 'none',
           background: 'rgba(255,255,255,0.2)',
           color: '#fff',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          fontSize: '14px'
         }}>
           Выйти
         </button>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+      {/* Tabs - горизонтальная прокрутка на мобильных */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '8px', 
+        marginBottom: '20px',
+        overflowX: 'auto',
+        paddingBottom: '8px',
+        WebkitOverflowScrolling: 'touch'
+      }}>
         {(['stats', 'users', 'payments'] as const).map(t => (
           <button 
             key={t}
             onClick={() => setTab(t)}
             style={{
-              padding: '10px 20px',
+              padding: '10px 16px',
               borderRadius: '8px',
               border: 'none',
               background: tab === t ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.1)',
               color: '#fff',
               cursor: 'pointer',
-              fontWeight: tab === t ? 'bold' : 'normal'
+              fontWeight: tab === t ? 'bold' : 'normal',
+              whiteSpace: 'nowrap',
+              fontSize: '14px',
+              flexShrink: 0
             }}
           >
             {t === 'stats' && '📈 Статистика'}
@@ -327,13 +341,15 @@ export default function AdminPage() {
           </button>
         ))}
         <button onClick={loadData} style={{
-          marginLeft: 'auto',
-          padding: '10px 20px',
+          padding: '10px 16px',
           borderRadius: '8px',
           border: 'none',
           background: 'rgba(255,255,255,0.2)',
           color: '#fff',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          fontSize: '14px',
+          flexShrink: 0
         }}>
           🔄 Обновить
         </button>

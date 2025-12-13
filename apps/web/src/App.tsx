@@ -71,10 +71,30 @@ function App() {
       <Outlet />
       
       {showAdmin && (
-        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.95)',zIndex:1000,overflow:'auto'}}>
+        <div style={{
+          position:'fixed',
+          left:0,
+          top:0,
+          right:0,
+          bottom:0,
+          background:'#0a0a1a',
+          zIndex:1000,
+          overflow:'auto',
+          WebkitOverflowScrolling: 'touch'
+        }}>
           <AdminPage />
-          <div style={{position:'fixed',top:10,right:10,zIndex:1001,display:'flex',gap:10}}>
-            <span style={{color:'#888',fontSize:12}}>5 тапов на "Домой" для выхода</span>
+          <div style={{
+            position:'fixed',
+            top: 'max(12px, env(safe-area-inset-top))',
+            right:16,
+            zIndex:1001,
+            display:'flex',
+            gap:10,
+            alignItems:'center'
+          }}>
+            <span style={{color:'#666',fontSize:11,background:'rgba(0,0,0,0.5)',padding:'4px 8px',borderRadius:4}}>
+              5 тапов на "Домой" = выход
+            </span>
           </div>
         </div>
       )}

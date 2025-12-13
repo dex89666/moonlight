@@ -136,8 +136,16 @@ export default function Compatibility() {
         </div>
 
         {/* Кнопка Расчета */}
-        <Button onClick={handleSubmit} disabled={!d1 || !d2 || isLoading} variant="primary">
-          {isLoading ? 'Считаем...' : 'Рассчитать'}
+        <Button onClick={handleSubmit} disabled={!d1 || !d2 || isLoading} variant="primary" style={{
+          background: 'linear-gradient(135deg, #ec4899, #f472b6)',
+          color: '#fff',
+          fontWeight: 700,
+          fontSize: '16px',
+          padding: '14px 24px',
+          border: 'none',
+          borderRadius: '12px'
+        }}>
+          {isLoading ? 'Считаем...' : '💞 Рассчитать'}
         </Button>
       </div>
 
@@ -150,11 +158,19 @@ export default function Compatibility() {
         </div>
       )}
       <div style={{ marginTop: '12px' }}>
-        <Button type="button" variant="outline" onClick={async () => {
+        <Button type="button" variant="outline" style={{
+          background: 'rgba(239, 68, 68, 0.15)',
+          color: '#f87171',
+          fontWeight: 600,
+          fontSize: '14px',
+          padding: '10px 16px',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          borderRadius: '8px'
+        }} onClick={async () => {
           try { localStorage.removeItem('birthDate1'); localStorage.removeItem('birthDate2'); setD1(''); setD2('') } catch (e) {}
           const userId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString();
           if (userId) await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, action: 'clearDate' }) })
-        }}>Очистить даты</Button>
+        }}>🗑️ Очистить даты</Button>
       </div>
     </Section>
   );

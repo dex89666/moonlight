@@ -137,8 +137,16 @@ export default function MatrixLight() {
           <input id="matrix-native-date" type="date" className="input" value={formatToInput(d)} onChange={(e) => setD(formatFromInput(e.target.value))} />
         )}
 
-        <Button type="submit" disabled={!d || isLoading} variant="primary" style={{ border: '2px solid red' }}>
-          {isLoading ? 'Думаю...' : 'Рассчитать'}
+        <Button type="submit" disabled={!d || isLoading} variant="primary" style={{ 
+          background: 'linear-gradient(135deg, #7c3aed, #a855f7)', 
+          color: '#fff', 
+          fontWeight: 700, 
+          fontSize: '16px',
+          padding: '14px 24px',
+          border: 'none',
+          borderRadius: '12px'
+        }}>
+          {isLoading ? 'Думаю...' : '🔮 Рассчитать'}
         </Button>
       </form>
 
@@ -155,7 +163,15 @@ export default function MatrixLight() {
       )}
 
       <div style={{ marginTop: '10px' }}>
-  <Button type="button" variant="outline" onClick={async () => {
+  <Button type="button" variant="outline" style={{
+    background: 'rgba(239, 68, 68, 0.15)',
+    color: '#f87171',
+    fontWeight: 600,
+    fontSize: '14px',
+    padding: '10px 16px',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    borderRadius: '8px'
+  }} onClick={async () => {
           // clear saved date both locally and on server if user is known
           try { localStorage.removeItem('birthDate'); setD('') } catch (e) {}
           const tg = (window as any).Telegram?.WebApp;
@@ -163,7 +179,7 @@ export default function MatrixLight() {
           if (userId) {
             await fetch('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, action: 'clearDate' }) })
           }
-        }}>Очистить сохранённую дату</Button>
+        }}>🗑️ Очистить сохранённую дату</Button>
       </div>
     </Section>
   );
