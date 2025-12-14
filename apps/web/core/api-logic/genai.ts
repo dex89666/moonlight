@@ -34,7 +34,25 @@ export async function generateWithAI(
   const analysisType = opts?.analysisType || 'brief';
   const wrappedPrompt = wrapPrompt(prompt, analysisType);
   
-  // Try OpenRouter first (free models available)
+  // Try Gemini first (simple HTTP API)
+  const geminiKey = (process.env.GEMINI_API_KEY || '').trim();
+  console.log('[genai] Gemini key exists:', !!geminiKey, 'length:', geminiKey.length);
+  
+  if (geminiKey) {
+    try {
+      console.log('[genai] Calling Gemini HTTP API...');
+      const result = await callGeminiHTTP(wrappedPrompt, geminiKey, opts);
+      if (result) {
+        console.log('[genai] Gemini HTTP success, response length:', result.length);
+        return result;
+      }
+      console.log('[genai] Gemini HTTP returned empty');
+    } catch (e: any) {
+      console.warn('[genai] Gemini HTTP failed:', e.message);
+    }
+  }
+  
+  // Try OpenRouter as fallback
   const openRouterKey = (process.env.OPENROUTER_API_KEY || '').trim();
   console.log('[genai] OpenRouter key exists:', !!openRouterKey, 'length:', openRouterKey.length);
   
@@ -52,22 +70,56 @@ export async function generateWithAI(
     }
   }
   
-  // Fallback to Gemini
-  try {
-    console.log('[genai] Trying Gemini fallback...');
-    const result = await generateWithGemini(wrappedPrompt, opts);
-    if (result && !result.includes('вариант #')) {
-      console.log('[genai] Gemini success');
-      return result;
-    }
-    console.log('[genai] Gemini returned canned or empty');
-  } catch (e: any) {
-    console.warn('[genai] Gemini failed:', e.message);
-  }
-  
   // Final fallback to canned responses
   console.log('[genai] Using canned fallback');
   return getCannedResponse(prompt, analysisType);
+}
+
+// Simple Gemini HTTP API call
+async function callGeminiHTTP(prompt: string, apiKey: string, opts?: { timeoutMs?: number }): Promise<string> {
+  const timeoutMs = opts?.timeoutMs || 20000;
+  const model = 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  
+  console.log('[genai] Gemini model:', model, 'timeout:', timeoutMs);
+  
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1000
+        }
+      }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timer);
+    
+    console.log('[genai] Gemini response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      console.error('[genai] Gemini error body:', errorText);
+      throw new Error(`Gemini error: ${response.status} ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('[genai] Gemini response keys:', Object.keys(data || {}));
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (text) return text;
+    throw new Error('Empty response from Gemini');
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function callOpenRouter(prompt: string, apiKey: string, opts?: { timeoutMs?: number, model?: string }): Promise<string> {
